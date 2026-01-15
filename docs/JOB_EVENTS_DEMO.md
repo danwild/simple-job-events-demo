@@ -121,6 +121,8 @@ The `client/` folder contains a small React/Vite UI used to demo the workflow si
 - Polls job status: `GET /1/services2/{service_urn}/jobs/{job_id}`
 - Fetches job events (best-effort): `GET /1/services2/{service_urn}/jobs/{job_id}/events`
 
+> **Note:** The exact response format for `GET .../jobs/{job_id}/events` is **not yet confirmed** in this repo (I haven't received a successful response yet). It may be a JSON payload, or it may be an SSE `text/event-stream` response. The client function `subscribeToJobEvents` currently does best-effort parsing and will likely need updating once we confirm the real wire format.
+
 ### Prerequisites
 
 - Node.js 20+

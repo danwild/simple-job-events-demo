@@ -132,3 +132,5 @@ The client creates and monitors jobs via the IVCAP Jobs API:
 - `POST /1/services2/{service_urn}/jobs` (create job)
 - `GET /1/services2/{service_urn}/jobs/{job_id}` (poll status)
 - `GET /1/services2/{service_urn}/jobs/{job_id}/events` (best-effort fetch events for display)
+
+> **Note:** The `/events` endpoint response format is still **unknown/untested** in this repo (no successful response captured yet). It may be JSON, or it may be SSE (`text/event-stream`). The current `subscribeToJobEvents` implementation is best-effort and may need to be updated once the real format is confirmed.
