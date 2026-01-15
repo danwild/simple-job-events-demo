@@ -5,7 +5,7 @@ from urllib.request import Request, urlopen
 
 
 #: Default URL to call the service on (including port).
-url: Final[str] = 'http://localhost:8080'
+url: Final[str] = 'http://localhost:8078'
 
 #: The delimiter to use between output sections (so you can clearly see where one section ends).
 section_separator: Final[str] = "\n----------\n"
@@ -35,4 +35,4 @@ if __name__ == "__main__":
     parser.add_argument("input_data_filename", nargs="?", help="Filename of the file containing input data to use when making the request.")
     args = parser.parse_args()
 
-    request(args.url, args.input_data_filename)
+    request(args.url or url, args.input_data_filename or "tests/request.json")

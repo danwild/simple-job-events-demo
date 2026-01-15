@@ -1,3 +1,10 @@
+# Workflow Simulator
+
+> **Note:** This project was built from the [Sciansa Tool Integration Template](https://github.com/csiro-internal/sciansa-integration).
+> For details on what this demo does, see [docs/JOB_EVENTS_DEMO.md](docs/JOB_EVENTS_DEMO.md).
+
+---
+
 # Sciansa Tool Integration
 
 If you are new to development for Sciansa see https://github.com/csiro-internal/sciansa-integration for higher level
@@ -186,16 +193,19 @@ the Readme in this repo as the source of your docs.
 
 ## Default Functionality:
 
-The default functionality/operation that this template implements is to check whether a number is prime.
-Input and output data are encoded with JSON.
+This service simulates multi-agent workflows by emitting IVCAP Job Events with realistic timing.
+It is designed for developing and testing frontend UX patterns against event streams.
 
 |            | Description |
 |------------|-------------|
-| **Input**  | Integer     |
-| **Output** | Boolean indicating whether the input was prime. |
+| **Input**  | `preset_name` (workflow to simulate) and optional `timing_multiplier` |
+| **Output** | Workflow completion stats (phases, agents, events, elapsed time) + streamed events |
 
-This default functionality provides a simple and well understood operation that you can test with until you are ready to
-replace the logic with your own.
+Available presets: `deep_research`, `multi_agent_crew`, `simple_pipeline`
+
+See [docs/JOB_EVENTS_DEMO.md](docs/JOB_EVENTS_DEMO.md) for full details.
+
+Optional demo UI: `client/` contains a small React app which creates a job via the IVCAP Jobs API and (best-effort) fetches the job's events for display. See `client/README.md`.
 
 
 ## Local Testing:
@@ -306,19 +316,19 @@ data: (choose one of Outside / Inside The Container, then continue with "Call Th
 
 **Outside The Container**
 ```
-$ poetry ivcap run -- --port 8080
+$ poetry ivcap run -- --port 8078
 # Expect:
-# Running: poetry run python tool-service.py --port 8080
+# Running: poetry run python tool-service.py --port 8078
 # 2025-05-28T16:24:14+1000 INFO (app): AI tool to check for prime numbers - 0.2.0|b4dbd44|2025-05-28T16:24:13+10:00 - v0.7.2
 # 2025-05-28T16:24:14+1000 INFO (uvicorn.error): Started server process [6311]
 # 2025-05-28T16:24:14+1000 INFO (uvicorn.error): Waiting for application startup.
 # 2025-05-28T16:24:14+1000 INFO (uvicorn.error): Application startup complete.
-# 2025-05-28T16:24:14+1000 INFO (uvicorn.error): Uvicorn running on http://0.0.0.0:8080 (Press CTRL+C to quit)
+# 2025-05-28T16:24:14+1000 INFO (uvicorn.error): Uvicorn running on http://0.0.0.0:8078 (Press CTRL+C to quit)
 ```
 
 **Inside The Container**
 ```
-$ poetry ivcap docker-run -- --port 8080
+$ poetry ivcap docker-run -- --port 8078
 # Expect:
 # ...
 # INFO: docker run -it ... ivcap_python_ai_tool_template_x86_64 ...
@@ -327,18 +337,19 @@ $ poetry ivcap docker-run -- --port 8080
 # 2025-01-01T00:00:20+0000 INFO (uvicorn): Started server process [1]
 # 2025-01-01T00:00:20+0000 INFO (uvicorn): Waiting for application startup.
 # 2025-01-01T00:00:20+0000 INFO (uvicorn): Application startup complete.
-# 2025-01-01T00:00:20+0000 INFO (uvicorn): Uvicorn running on http://0.0.0.0:8080 (Press CTRL+C to quit)
+# 2025-01-01T00:00:20+0000 INFO (uvicorn): Uvicorn running on http://0.0.0.0:8078 (Press CTRL+C to quit)
 ```
 
 **Call The Service**
 In a separate terminal, call the service as follows (which supplies the input data from the file `tests/request.json`).
 ```
-$ python3 make_request.py http://localhost:8080 tests/request.json
+$ python3 make_request.py http://localhost:8078 tests/request.json
 # Expect:
 # Request:
 # {
-#   "$schema": "urn:sd:schema.is-prime.request.1",
-#   "number": 997
+#   "$schema": "urn:sd:schema.workflow-simulator.request.1",
+#   "preset_name": "simple_pipeline",
+#   "timing_multiplier": 0.5
 # }
 # ----------
 #
@@ -346,16 +357,14 @@ $ python3 make_request.py http://localhost:8080 tests/request.json
 # date: Wed, 01 Jan 2025 00:00:00 GMT
 # server: uvicorn
 # job-id: urn:ivcap:job:00000000-0000-0000-0000-000000000000
-# content-length: 67
 # content-type: application/json
 # ivcap-ai-tool-version: 0.7.15
 # Connection: close
 #
-#
 # ----------
 #
 # Response Data:
-# {"$schema":"urn:sd:schema.is-prime.1","number":997,"is_prime":true}
+# {"$schema":"urn:sd:schema.workflow-simulator.1","message":"Workflow completed successfully",...}
 # ----------
 ```
 
@@ -367,7 +376,7 @@ The output from this command shows 3 things:
 You can also see the input data that was supplied which is in [tests/request.json](tests/request.json).
 
 You can also verify the build and view the web service is available by navigating to
-[http://localhost:8080/api](http://localhost:8080/api). Here you will find the OpenAPI spec for the endpoints the
+[http://localhost:8078/api](http://localhost:8078/api). Here you will find the OpenAPI spec for the endpoints the
 service creates if you are familiar with web APIs.
 
 <img src="openapi.png" width="400"/>
@@ -377,17 +386,16 @@ You may also want to use a standard tool on your system to make the requests. Fo
 $ curl -i -X POST \
     -H "content-type: application/json" \
     --data @tests/request.json \
-    http://localhost:8080
+    http://localhost:8078
 # Expect:
 # HTTP/1.1 200 OK
 # date: Wed, 01 Jan 2025 00:00:00 GMT
 # server: uvicorn
 # job-id: urn:ivcap:job:00000000-0000-0000-0000-000000000000
-# content-length: 67
 # content-type: application/json
 # ivcap-ai-tool-version: 0.7.15
 #
-# {"$schema":"urn:sd:schema.is-prime.1","number":997,"is_prime":true}
+# {"$schema":"urn:sd:schema.workflow-simulator.1","message":"Workflow completed successfully",...}
 ```
 
 > **Remember:** After making changes if you are testing in the container you will need to rebuild the container
@@ -445,7 +453,7 @@ $ poetry ivcap deploy
 
 After you have deployed the service you can test the deployment using the following steps.
 
-Run `poetry ivcap job-exec tests/request.json` to execute the service to check if '997' is a prime number:
+Run `poetry ivcap job-exec tests/request.json` to execute the workflow simulation:
 ```
 $ poetry ivcap job-exec tests/request.json
 # Expect:
@@ -453,9 +461,12 @@ $ poetry ivcap job-exec tests/request.json
 # Creating job 'https://develop.ivcap.net/1/services2/urn:ivcap:service:.../jobs'
 # ...
 # "result-content": {
-#   "$schema": "urn:sd:schema.is-prime.1",
-#   "is_prime": true,
-#   "number": 997
+#   "$schema": "urn:sd:schema.workflow-simulator.1",
+#   "message": "Workflow completed successfully",
+#   "preset_name": "simple_pipeline",
+#   "phases_completed": 3,
+#   "agents_executed": 3,
+#   ...
 # },
 ```
 
@@ -486,7 +497,7 @@ might need to modify when updating the template with your implementation.
 **Request:** Input data structure. The general format is key value pairs. Update to take the values that you need to
 supply to your tool. This is a Pydantic data structure you can see the Pydantic docs if you need additional features. \
 **Result:** Output data structure. Same as `Request`. \
-`@ivcap_ai_tool / def is_prime`: Defines the operation you provide. Update to provide your functionality.
+`@ivcap_ai_tool / def run_workflow_simulation`: Defines the operation you provide. Update to provide your functionality.
 
 `pyproject.toml`: Project details and dependencies.
 
@@ -494,8 +505,7 @@ supply to your tool. This is a Pydantic data structure you can see the Pydantic 
 
 ### [tool-service.py](./tool-service.py)
 
-Implements a simple HTTP based service which provides a `POST /` service endpoint to test if the number contained in the
-request is a prime number or not.
+Implements an HTTP based service which provides a `POST /` service endpoint to run workflow simulations.
 
 We first import a few library functions and configure the logging system to use a more "machine" friendly format to
 simplify service monitoring on the platform.
@@ -516,10 +526,10 @@ We then describe the service, who to contact and other useful information used w
 
 ```
 service = Service(
-    name="AI tool to check for prime numbers",
+    name="Workflow Simulator",
     contact={
-        "name": "Max Ott",
-        "email": "max.ott@data61.csiro.au",
+        "name": "Your Name",
+        "email": "your.email@example.com",
     },
     license={
         "name": "MIT",
@@ -540,20 +550,22 @@ to use it.
 
 ```
 class Request(BaseModel):
-    jschema: str = Field("urn:sd:schema:is-prime.request.1", alias="$schema")
-    number: int = Field(description="the number to check if prime")
+    jschema: str = Field("urn:sd:schema.workflow-simulator.request.1", alias="$schema")
+    preset_name: str = Field(description="Name of the workflow preset to run")
+    timing_multiplier: Optional[float] = Field(default=1.0, description="Scale factor for delays")
 
 class Result(BaseModel):
-    jschema: str = Field("urn:sd:schema:is-prime.1", alias="$schema")
-    flag: bool = Field(description="true if number is prime, false otherwise")
+    jschema: str = Field("urn:sd:schema.workflow-simulator.1", alias="$schema")
+    message: str = Field(description="Success message on workflow completion")
+    # ... additional fields for execution statistics
 
-@ivcap_ai_tool("/", opts=ToolOptions(tags=["Prime Checker"]))
-def is_prime(req: Request) -> Result:
+@ivcap_ai_tool("/", opts=ToolOptions(tags=["Workflow Simulator"]))
+def run_workflow_simulation(req: Request, jobCtxt: JobContext) -> Result:
     """
-    Checks if a number is a prime number.
+    Runs a workflow simulation based on a preset definition.
     """
     ...
-    return Result(flag=True)
+    return Result(message="Workflow completed successfully", ...)
 ```
 
 Finally, we need to start the server to listen for incoming requests:

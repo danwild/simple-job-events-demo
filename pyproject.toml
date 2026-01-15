@@ -1,9 +1,11 @@
 [project]
-name = "ivcap-python-ai-tool-template"
-version = "0.2.2"
-description = "AI tool to help determining if a number is a prime number."
+name = "simple-job-events-demo"
+version = "0.1.0"
+description = "Simple demo of IVCAP Job Events API"
 authors = [
-    {name = "Max Ott",email = "max.ott@data61.csiro.au"}
+    {name = "Max Ott",email = "max.ott@data61.csiro.au"},
+    {name = "Ashley Stacey",email = "Ashley.Stacey@data61.csiro.au"},
+    {name = "Dan Wild",email = "Dan.Wild@data61.csiro.au"}
 ]
 readme = "README.md"
 requires-python = ">=3.10,<4.0"

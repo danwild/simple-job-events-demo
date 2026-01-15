@@ -1,9 +1,10 @@
-import math
-from pydantic import BaseModel, Field
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict
+from typing import Optional
 
 from ivcap_service import getLogger, Service, JobContext
 from ivcap_ai_tool import start_tool_server, ToolOptions, ivcap_ai_tool, logging_init
+
+from simulator import WorkflowSimulator
 
 logging_init()
 logger = getLogger("app")
@@ -11,10 +12,10 @@ logger = getLogger("app")
 
 # Service details.
 service = Service(
-    name="A tool to check whether a number is prime",
+    name="Workflow Simulator",
     contact={
-        "name": "Your Name",
-        "email": "your.name@data61.csiro.au",
+        "name": "Dan Wild",
+        "email": "Dan.Wild@data61.csiro.au",
     },
     license={
         "name": "MIT",
@@ -26,15 +27,23 @@ service = Service(
 # Specify input value(s).
 class Request(BaseModel):
     # A unique schema identifier for this data format.
-    jschema: str = Field("urn:sd:schema.is-prime.request.1", alias="$schema")
-    # An example input value.
-    number: int = Field(description="The number to check as prime.")
+    jschema: str = Field(
+        "urn:sd:schema.workflow-simulator.request.1", alias="$schema")
+    # Input values.
+    preset_name: str = Field(
+        description="Name of the workflow preset to run (e.g., 'deep_research', 'multi_agent_crew', 'simple_pipeline')"
+    )
+    timing_multiplier: Optional[float] = Field(
+        default=1.0,
+        description="Scale factor for delays: 0.5 = 2x faster, 2.0 = 2x slower"
+    )
 
     # An example showing how to supply the input data.
     model_config = ConfigDict(json_schema_extra={
         "example": {
-            "$schema": "urn:sd:schema.is-prime.request.1",
-            "number": 997
+            "$schema": "urn:sd:schema.workflow-simulator.request.1",
+            "preset_name": "deep_research",
+            "timing_multiplier": 1.0
         }
     })
 
@@ -42,44 +51,71 @@ class Request(BaseModel):
 # Specify result value(s).
 class Result(BaseModel):
     # A unique schema identifier for this data format.
-    jschema: str = Field("urn:sd:schema.is-prime.1", alias="$schema")
-    # Two example result values.
-    number: int = Field(description="The number that was checked as prime.")
-    is_prime: bool = Field(description="true if number is prime, false otherwise.")
+    jschema: str = Field("urn:sd:schema.workflow-simulator.1", alias="$schema")
+    # Result values.
+    message: str = Field(description="Success message on workflow completion")
+    preset_name: str = Field(
+        description="Name of the preset that was executed")
+    phases_completed: int = Field(description="Number of phases completed")
+    agents_executed: int = Field(description="Number of agents that executed")
+    total_events: int = Field(description="Total number of events emitted")
+    elapsed_seconds: float = Field(
+        description="Total execution time in seconds")
 
     # An example showing what the result will look like.
     model_config = ConfigDict(json_schema_extra={
         "example": {
-            "$schema": "urn:sd:schema.is-prime.1",
-            "number": 997,
-            "is_prime": True
+            "$schema": "urn:sd:schema.workflow-simulator.1",
+            "message": "Workflow completed successfully",
+            "preset_name": "deep_research",
+            "phases_completed": 5,
+            "agents_executed": 12,
+            "total_events": 48,
+            "elapsed_seconds": 45.2
         }
     })
 
 
 # API Functionality.
-@ivcap_ai_tool("/", opts=ToolOptions(tags=["Prime Checker"]))
-def is_prime(req: Request, jobCtxt: JobContext) -> Result:
+@ivcap_ai_tool("/", opts=ToolOptions(tags=["Workflow Simulator"]))
+def run_workflow_simulation(req: Request, jobCtxt: JobContext) -> Result:
     """
-    Checks if a number is prime.
-    """
-    number = req.number
-    jobCtxt.report.step_started("main", f"Checking '{number}'")
-    is_prime = True
-    if number <= 1:
-        is_prime = False
-    elif number <= 3:
-        is_prime = True
-    elif number % 2 == 0 or number % 3 == 0:
-        is_prime = False
-    else:
-        for i in range(5, int(math.sqrt(number)) + 1, 6):
-            if number % i == 0 or number % (i + 2) == 0:
-                is_prime = False
-                break
+    Runs a workflow simulation based on a preset definition.
 
-    jobCtxt.report.step_finished("main", f"Is '{number}' a prime? {is_prime}")
-    return Result(number=number, is_prime=is_prime)
+    Simulates multi-agent workflows (like CrewAI or ChatGPT Deep Research)
+    by emitting IVCAP events at realistic intervals. Useful for frontend
+    development and UX testing against realistic event streams.
+
+    Available presets:
+    - deep_research: Multi-phase research workflow (Search, Analyze, Synthesize)
+    - multi_agent_crew: CrewAI-style with multiple specialized agents
+    - simple_pipeline: Basic 3-step sequential workflow for baseline testing
+    """
+    logger.info(f"Starting workflow simulation with preset: {req.preset_name}")
+
+    # Create simulator with the job context
+    simulator = WorkflowSimulator(
+        job_context=jobCtxt,
+        timing_multiplier=req.timing_multiplier or 1.0
+    )
+
+    # Run the simulation
+    result = simulator.run(req.preset_name)
+
+    logger.info(
+        f"Workflow completed: {result.phases_completed} phases, "
+        f"{result.agents_executed} agents, {result.total_events} events, "
+        f"{result.elapsed_seconds:.1f}s"
+    )
+
+    return Result(
+        message="Workflow completed successfully",
+        preset_name=result.preset_name,
+        phases_completed=result.phases_completed,
+        agents_executed=result.agents_executed,
+        total_events=result.total_events,
+        elapsed_seconds=round(result.elapsed_seconds, 2)
+    )
 
 
 if __name__ == "__main__":

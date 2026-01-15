@@ -1,0 +1,59 @@
+{
+  "name": "simple_pipeline",
+  "description": "Basic 3-step sequential workflow for baseline testing",
+  "phases": [
+    {
+      "id": "input",
+      "name": "Input Processing",
+      "delay_range_ms": [300, 800],
+      "agents": [
+        {
+          "id": "input_handler",
+          "name": "Input Handler",
+          "tasks": [
+            "Receiving input data...",
+            "Validating input format",
+            "Input ready for processing"
+          ],
+          "delay_range_ms": [500, 1500]
+        }
+      ]
+    },
+    {
+      "id": "process",
+      "name": "Main Processing",
+      "delay_range_ms": [500, 1200],
+      "agents": [
+        {
+          "id": "processor",
+          "name": "Core Processor",
+          "tasks": [
+            "Starting main processing...",
+            "Processing step 1 of 3",
+            "Processing step 2 of 3",
+            "Processing step 3 of 3",
+            "Processing complete"
+          ],
+          "delay_range_ms": [800, 2000]
+        }
+      ]
+    },
+    {
+      "id": "output",
+      "name": "Output Generation",
+      "delay_range_ms": [300, 700],
+      "agents": [
+        {
+          "id": "output_handler",
+          "name": "Output Handler",
+          "tasks": [
+            "Formatting output...",
+            "Generating final result",
+            "Output ready"
+          ],
+          "delay_range_ms": [500, 1200]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,137 @@
+{
+  "name": "multi_agent_crew",
+  "description": "Simulates CrewAI-style multi-agent collaboration with specialized roles",
+  "phases": [
+    {
+      "id": "kickoff",
+      "name": "Crew Kickoff",
+      "delay_range_ms": [300, 800],
+      "agents": [
+        {
+          "id": "manager",
+          "name": "Crew Manager",
+          "tasks": [
+            "Initializing crew...",
+            "Assigning roles to agents",
+            "Distributing initial tasks"
+          ],
+          "delay_range_ms": [500, 1500]
+        }
+      ]
+    },
+    {
+      "id": "research_phase",
+      "name": "Research Tasks",
+      "delay_range_ms": [800, 1500],
+      "agents": [
+        {
+          "id": "researcher",
+          "name": "Senior Researcher",
+          "tasks": [
+            "Investigating topic background...",
+            "Gathering domain knowledge",
+            "Compiling research notes",
+            "Sharing findings with team"
+          ],
+          "delay_range_ms": [1500, 3500]
+        },
+        {
+          "id": "data_analyst",
+          "name": "Data Analyst",
+          "tasks": [
+            "Collecting relevant data...",
+            "Cleaning and preprocessing",
+            "Running statistical analysis",
+            "Preparing data visualizations"
+          ],
+          "delay_range_ms": [2000, 4000]
+        }
+      ]
+    },
+    {
+      "id": "planning_phase",
+      "name": "Strategic Planning",
+      "delay_range_ms": [600, 1200],
+      "agents": [
+        {
+          "id": "strategist",
+          "name": "Strategy Expert",
+          "tasks": [
+            "Analyzing research findings...",
+            "Identifying opportunities",
+            "Developing strategic recommendations",
+            "Creating action plan"
+          ],
+          "delay_range_ms": [1800, 3500]
+        },
+        {
+          "id": "critic",
+          "name": "Critical Reviewer",
+          "tasks": [
+            "Reviewing strategy for weaknesses...",
+            "Identifying potential risks",
+            "Suggesting improvements",
+            "Validating recommendations"
+          ],
+          "delay_range_ms": [1200, 2800]
+        }
+      ]
+    },
+    {
+      "id": "execution_phase",
+      "name": "Task Execution",
+      "delay_range_ms": [1000, 2000],
+      "agents": [
+        {
+          "id": "writer",
+          "name": "Content Writer",
+          "tasks": [
+            "Drafting initial content...",
+            "Incorporating research findings",
+            "Adding strategic insights",
+            "Polishing language and tone"
+          ],
+          "delay_range_ms": [2000, 4500]
+        },
+        {
+          "id": "designer",
+          "name": "Visual Designer",
+          "tasks": [
+            "Creating visual assets...",
+            "Designing infographics",
+            "Formatting final deliverable"
+          ],
+          "delay_range_ms": [1500, 3000]
+        }
+      ]
+    },
+    {
+      "id": "review_phase",
+      "name": "Quality Assurance",
+      "delay_range_ms": [500, 1000],
+      "agents": [
+        {
+          "id": "qa_specialist",
+          "name": "QA Specialist",
+          "tasks": [
+            "Reviewing deliverable quality...",
+            "Checking for consistency",
+            "Verifying all requirements met",
+            "Approving final output"
+          ],
+          "delay_range_ms": [1000, 2500]
+        },
+        {
+          "id": "manager_review",
+          "name": "Crew Manager",
+          "tasks": [
+            "Final review of all work...",
+            "Consolidating team outputs",
+            "Preparing final delivery"
+          ],
+          "delay_range_ms": [800, 1800]
+        }
+      ]
+    }
+  ]
+}

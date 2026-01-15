@@ -1,0 +1,51 @@
+{
+  "account": "urn:ivcap:account:123e4567-e89b-12d3-a456-426614174000",
+  "error-message": "parameter out of range",
+  "finished-at": "1996-12-19T16:39:57-08:00",
+  "id": "urn:ivcap:job:123e4567-e89b-12d3-a456-426614174000",
+  "links": [
+    {
+      "href": "https://api.ivcap.net/1/....",
+      "rel": "self",
+      "type": "application/json"
+    },
+    {
+      "href": "https://api.ivcap.net/1/openapi/openapi3.json#/components/schemas/user",
+      "rel": "describedBy",
+      "type": "application/json"
+    }
+  ],
+  "name": "Fire risk for Lot2",
+  "order": "urn:ivcap:order:123e4567-e89b-12d3-a456-426614174000",
+  "policy": "urn:ivcap:policy:123e4567-e89b-12d3-a456-426614174000",
+  "products": {
+    "items": [
+      {
+        "data-href": "https:/.../1/artifacts/0000-00001220/blob",
+        "href": "https:/.../1/artifacts/0000-00001220",
+        "mime-type": "image/geo+tiff",
+        "name": "fire risk map",
+        "size": 1234963
+      }
+    ],
+    "links": [
+      {
+        "href": "https://api.ivcap.net/1/....",
+        "rel": "next"
+      }
+    ]
+  },
+  "request-content": "Laudantium exercitationem.",
+  "request-content-type": "application/json",
+  "requested-at": "1996-12-19T16:39:57-08:00",
+  "result-content": "Ut molestiae quia voluptatem quis provident.",
+  "result-content-type": "application/json",
+  "result-content-urn": "urn:ivcap:aspect:000",
+  "service": "urn:ivcap:service:123e4567-e89b-12d3-a456-426614174000",
+  "started-at": "1996-12-19T16:39:57-08:00",
+  "status": "unknown",
+  "tags": [
+    "tag1",
+    "tag2"
+  ]
+}
