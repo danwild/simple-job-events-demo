@@ -40,38 +40,15 @@ flowchart TB
   W["workflow:deep_research<br/>started → finished"]
 
   %% Phases (from presets/deep_research.json)
-  W --> PPlanning["phase:planning (Research Planning)<br/>started → finished"]
-  W --> PSearch["phase:search (Information Gathering)<br/>started → finished"]
-  W --> PAnalysis["phase:analysis (Deep Analysis)<br/>started → finished"]
-  W --> PSynthesis["phase:synthesis (Report Synthesis)<br/>started → finished"]
-  W --> PReview["phase:review (Quality Review)<br/>started → finished"]
+  W --> PPlanning["phase:planning<br/>(Research Planning)"]
+  W --> PSearch["phase:search<br/>(Information Gathering)"]
+  W --> PAnalysis["phase:analysis<br/>(Deep Analysis)"]
+  W --> PSynthesis["phase:synthesis<br/>(Report Synthesis)"]
+  W --> PReview["phase:review<br/>(Quality Review)"]
 
-  %% Planning agents
-  PPlanning --> AQuery["agent:planning:query_analyzer<br/>started → finished"]
-  PPlanning --> AScope["agent:planning:scope_planner<br/>started → finished"]
-
-  %% Search agents
-  PSearch --> AWeb["agent:search:web_searcher<br/>started → finished"]
-  PSearch --> AFetch["agent:search:content_fetcher<br/>started → finished"]
-
-  %% Analysis agents
-  PAnalysis --> AFact["agent:analysis:fact_extractor<br/>started → finished"]
-  PAnalysis --> AContra["agent:analysis:contradiction_detector<br/>started → finished"]
-  PAnalysis --> AInsight["agent:analysis:insight_generator<br/>started → finished"]
-
-  %% Synthesis agents
-  PSynthesis --> AOutline["agent:synthesis:outline_builder<br/>started → finished"]
-  PSynthesis --> AWrite["agent:synthesis:content_writer<br/>started → finished"]
-  PSynthesis --> ACite["agent:synthesis:citation_manager<br/>started → finished"]
-
-  %% Review agents
-  PReview --> ACheck["agent:review:fact_checker<br/>started → finished"]
-  PReview --> AEdit["agent:review:editor<br/>started → finished"]
-
-  %% Task events (example: one agent emits task-1..task-n, each started → finished)
-  AWeb --> T1["agent:search:web_searcher:task-1<br/>started → finished"]
-  AWeb --> T2["agent:search:web_searcher:task-2<br/>started → finished"]
-  AWeb --> T3["agent:search:web_searcher:task-…<br/>started → finished"]
+  %% Within each phase: agents emit tasks
+  PSearch --> A["agent:{phase_id}:{agent_id}<br/>started → finished"]
+  A --> T["agent:{phase_id}:{agent_id}:task-{n}<br/>started → finished"]
 ```
 
 ## Expected Behaviour
