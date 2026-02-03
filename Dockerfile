@@ -7,7 +7,9 @@ COPY pyproject.toml poetry.lock ./
 RUN poetry config virtualenvs.create false && poetry install --no-root
 
 # Get service files
-ADD tool-service.py  ./
+COPY tool-service.py ./
+COPY simulator.py ./
+COPY presets/ ./presets/
 
 # VERSION INFORMATION
 ARG VERSION ???
