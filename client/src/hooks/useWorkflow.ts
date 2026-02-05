@@ -24,7 +24,13 @@ export interface UseWorkflowReturn {
   /** Current workflow state */
   state: WorkflowState
   /** Start a new workflow */
-  startWorkflow: (preset: PresetName, timingMultiplier?: number) => Promise<void>
+  startWorkflow: (
+    preset: PresetName,
+    options?: {
+      totalRunTimeSeconds?: number
+      tickIntervalSeconds?: number
+    }
+  ) => Promise<void>
   /** Reset to idle state */
   reset: () => void
   /** Whether a workflow is currently running */
@@ -58,7 +64,10 @@ export function useWorkflow(): UseWorkflowReturn {
 
   const startWorkflow = useCallback(async (
     preset: PresetName,
-    timingMultiplier: number = 1.0
+    options: {
+      totalRunTimeSeconds?: number
+      tickIntervalSeconds?: number
+    } = {}
   ) => {
     // Clean up any previous run
     cleanupRunning()
@@ -78,7 +87,7 @@ export function useWorkflow(): UseWorkflowReturn {
 
     try {
       // Create the job via IVCAP Jobs API
-      const jobId = await createJob(preset, timingMultiplier)
+      const jobId = await createJob(preset, options)
 
       setState(prev => ({
         ...prev,

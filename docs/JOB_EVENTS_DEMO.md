@@ -10,9 +10,9 @@ This project simulates multi-agent workflows (like CrewAI or ChatGPT Deep Resear
   - `deep_research` - Multi-phase research workflow (Planning → Search → Analysis → Synthesis → Review)
   - `multi_agent_crew` - CrewAI-style with specialized agent roles
   - `simple_pipeline` - Basic 3-step sequential workflow for quick testing
-- **timing_multiplier** (optional, default: 1.0): Scale factor for delays
-  - `0.5` = 2x faster (good for testing)
-  - `2.0` = 2x slower (more realistic feel)
+  - `timer_tick` - Simple timer that emits one event per tick interval
+- **total_run_time_seconds** (required for `timer_tick`, default: 60): Total runtime in seconds (max 600)
+- **tick_interval_seconds** (required for `timer_tick`, default: 5): Interval between events in seconds
 
 ## Outputs
 
@@ -31,6 +31,7 @@ Events are emitted hierarchically:
 - `phase:{phase_id}` - Phase start/complete (e.g., `phase:research`)
 - `agent:{phase_id}:{agent_id}` - Agent start/complete (e.g., `agent:research:web_searcher`)
 - `agent:{phase_id}:{agent_id}:task-{n}` - Individual task updates
+- `timer:tick:{n}` - Timer/tick events when `preset_name` is `timer_tick`
 
 ## Example: `deep_research` workflow (Mermaid)
 
@@ -64,6 +65,21 @@ flowchart TB
      - Emit `agent:{phase}:{agent}:completed` event
    - Emit `phase:{id}:completed` event
 3. Return summary statistics on workflow completion
+
+## Timer/Tick Mode
+
+When `preset_name` is `timer_tick`, the service runs for a fixed duration (capped at 600 seconds) and emits one event per tick interval.
+Each tick emits a single **started** event with step_id `timer:tick:{n}` and message `Tick {n}`.
+
+Example input:
+
+```json
+{
+  "preset_name": "timer_tick",
+  "total_run_time_seconds": 30,
+  "tick_interval_seconds": 5
+}
+```
 
 ## Adding Custom Presets
 

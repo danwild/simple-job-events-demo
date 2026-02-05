@@ -31,19 +31,22 @@ class Request(BaseModel):
         "urn:sd:schema.workflow-simulator.request.1", alias="$schema")
     # Input values.
     preset_name: str = Field(
-        description="Name of the workflow preset to run (e.g., 'deep_research', 'multi_agent_crew', 'simple_pipeline')"
+        description="Name of the workflow preset to run (e.g., 'deep_research', 'multi_agent_crew', 'simple_pipeline', 'timer_tick')"
     )
-    timing_multiplier: Optional[float] = Field(
-        default=1.0,
-        description="Scale factor for delays: 0.5 = 2x faster, 2.0 = 2x slower"
+    total_run_time_seconds: Optional[float] = Field(
+        default=60.0,
+        description="Total runtime for timer_tick preset (seconds, max 600)"
+    )
+    tick_interval_seconds: Optional[float] = Field(
+        default=5.0,
+        description="Tick interval for timer_tick preset (seconds)"
     )
 
     # An example showing how to supply the input data.
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "$schema": "urn:sd:schema.workflow-simulator.request.1",
-            "preset_name": "deep_research",
-            "timing_multiplier": 1.0
+            "preset_name": "deep_research"
         }
     })
 
@@ -96,12 +99,30 @@ def run_workflow_simulation(req: Request, jobCtxt: JobContext) -> Result:
     # Create simulator with the job context
     simulator = WorkflowSimulator(
         job_context=jobCtxt,
-        timing_multiplier=req.timing_multiplier or 1.0,
         logger=logger,
     )
 
     # Run the simulation
-    result = simulator.run(req.preset_name)
+    if req.preset_name == "timer_tick":
+        if req.total_run_time_seconds <= 0 or req.tick_interval_seconds <= 0:
+            raise ValueError(
+                "total_run_time_seconds and tick_interval_seconds must be > 0"
+            )
+        total_run_time_seconds = req.total_run_time_seconds
+        if total_run_time_seconds > WorkflowSimulator.MAX_TIMER_SECONDS:
+            logger.warning(
+                "total_run_time_seconds=%s exceeds max of %ss; capping to max",
+                total_run_time_seconds,
+                WorkflowSimulator.MAX_TIMER_SECONDS,
+            )
+            total_run_time_seconds = WorkflowSimulator.MAX_TIMER_SECONDS
+
+        result = simulator.run_timer_tick(
+            total_run_time_seconds=total_run_time_seconds,
+            tick_interval_seconds=req.tick_interval_seconds,
+        )
+    else:
+        result = simulator.run(req.preset_name)
 
     logger.info(
         f"Workflow completed: {result.phases_completed} phases, "

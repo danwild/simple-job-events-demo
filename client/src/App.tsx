@@ -10,11 +10,15 @@ const PRESETS: { id: PresetName; label: string; description: string }[] = [
   { id: 'simple_pipeline', label: 'Simple Pipeline', description: 'Basic 3-step workflow' },
   { id: 'deep_research', label: 'Deep Research', description: 'Multi-phase research workflow' },
   { id: 'multi_agent_crew', label: 'Multi-Agent Crew', description: 'CrewAI-style agents' },
+  { id: 'timer_tick', label: 'Timer/Tick', description: 'Emit one event per tick interval' },
 ]
 
 function App() {
   const [selectedPreset, setSelectedPreset] = useState<PresetName>('simple_pipeline')
+  const [timerTotalSeconds, setTimerTotalSeconds] = useState('60')
+  const [timerTickIntervalSeconds, setTimerTickIntervalSeconds] = useState('5')
   const { state, startWorkflow, reset, isRunning } = useWorkflow()
+  const isTimerTick = selectedPreset === 'timer_tick'
   const submitToExecuteSeconds = (state.submittedAt && state.executingAt)
     ? Math.max(0, (state.executingAt.getTime() - state.submittedAt.getTime()) / 1000)
     : null
@@ -36,7 +40,17 @@ function App() {
   const submitToExitLabel = submitToExitSeconds != null ? `${submitToExitSeconds.toFixed(2)}s` : 'Waiting...'
 
   const handleStart = () => {
-    startWorkflow(selectedPreset, 0.5) // Use 0.5x timing for faster demo
+    const totalRunTimeSeconds = Number(timerTotalSeconds)
+    const tickIntervalSeconds = Number(timerTickIntervalSeconds)
+
+    startWorkflow(selectedPreset, {
+      totalRunTimeSeconds: isTimerTick && Number.isFinite(totalRunTimeSeconds)
+        ? totalRunTimeSeconds
+        : undefined,
+      tickIntervalSeconds: isTimerTick && Number.isFinite(tickIntervalSeconds)
+        ? tickIntervalSeconds
+        : undefined,
+    })
   }
 
   return (
@@ -79,6 +93,33 @@ function App() {
             <p className="text-sm text-muted-foreground">
               {PRESETS.find(p => p.id === selectedPreset)?.description}
             </p>
+
+            {isTimerTick && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="text-sm font-medium">
+                  Total run time (seconds)
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={timerTotalSeconds}
+                    onChange={(event) => setTimerTotalSeconds(event.target.value)}
+                    className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm shadow-sm"
+                  />
+                </label>
+                <label className="text-sm font-medium">
+                  Tick interval (seconds)
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={timerTickIntervalSeconds}
+                    onChange={(event) => setTimerTickIntervalSeconds(event.target.value)}
+                    className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm shadow-sm"
+                  />
+                </label>
+              </div>
+            )}
 
             {/* Action Buttons */}
             <div className="flex gap-2">

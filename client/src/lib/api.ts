@@ -23,17 +23,28 @@ const REQUEST_SCHEMA = 'urn:sd:schema.workflow-simulator.request.1'
  * Create a workflow job via IVCAP Jobs API
  * 
  * @param preset - The workflow preset to run
- * @param timingMultiplier - Scale factor for delays (0.5 = faster, 2.0 = slower)
  * @returns Job ID for subscribing to events
  */
+export interface CreateJobOptions {
+  totalRunTimeSeconds?: number
+  tickIntervalSeconds?: number
+}
+
 export async function createJob(
   preset: PresetName,
-  timingMultiplier: number = 1.0
+  options: CreateJobOptions = {}
 ): Promise<string> {
   const parameters: JobRequest = {
     $schema: REQUEST_SCHEMA,
     preset_name: preset,
-    timing_multiplier: timingMultiplier,
+  }
+
+  if (Number.isFinite(options.totalRunTimeSeconds)) {
+    parameters.total_run_time_seconds = options.totalRunTimeSeconds
+  }
+
+  if (Number.isFinite(options.tickIntervalSeconds)) {
+    parameters.tick_interval_seconds = options.tickIntervalSeconds
   }
 
   const response = await fetch(`${API_URL}/1/services2/${encodeURIComponent(SERVICE_URN)}/jobs`, {
@@ -150,20 +161,89 @@ export function subscribeToJobEvents(
       || (record.stepId as string)
       || (record['step-id'] as string)
       || (record.eventID as string)
+      || (record.EventID as string)
+      || (record.SeqID as string)
+      || (record.seqId as string)
       || (fallback?.eventID as string)
+      || (fallback?.EventID as string)
+      || (fallback?.SeqID as string)
       || 'unknown'
+
+    const message = (record.message as string)
+      || (record.msg as string)
+      || JSON.stringify(record)
 
     return {
       step_id: stepId,
-      message: (record.message as string) || (record.msg as string) || '',
-      finished: (record.finished as boolean) ?? false,
-      timestamp: new Date((record.timestamp as string) || (fallback?.timestamp as string) || Date.now()),
+      message,
+      finished: (record.finished as boolean) ?? (record.Finished as boolean) ?? false,
+      timestamp: new Date(
+        (record.timestamp as string)
+        || (record.Timestamp as string)
+        || (fallback?.timestamp as string)
+        || (fallback?.Timestamp as string)
+        || Date.now()
+      ),
       type: getEventType(stepId),
     }
   }
 
+  const parseSseText = (text: string): Array<{ id?: string; data?: string }> => {
+    const events: Array<{ id?: string; data?: string }> = []
+    const lines = text.split(/\r?\n/)
+    let currentId: string | undefined
+    let dataLines: string[] = []
+
+    const pushEvent = () => {
+      if (currentId || dataLines.length > 0) {
+        events.push({
+          id: currentId,
+          data: dataLines.join('\n'),
+        })
+      }
+      currentId = undefined
+      dataLines = []
+    }
+
+    for (const line of lines) {
+      if (line === '') {
+        pushEvent()
+        continue
+      }
+      if (line.startsWith(':')) continue
+      if (line.startsWith('id:')) {
+        currentId = line.slice(3).trim()
+        continue
+      }
+      if (line.startsWith('data:')) {
+        dataLines.push(line.slice(5).trimStart())
+      }
+    }
+
+    pushEvent()
+    return events
+  }
+
   const emitFromResponse = (raw: unknown) => {
     if (raw == null) return
+
+    if (typeof raw === 'string') {
+      const trimmed = raw.trim()
+      if (!trimmed) return
+      if (trimmed.startsWith('id:') || trimmed.startsWith('data:') || trimmed.includes('\ndata:')) {
+        const parsed = parseSseText(trimmed)
+        for (const entry of parsed) {
+          if (entry.id) lastSeqId = entry.id
+          const payload = entry.data ?? ''
+          const event = parseEventPayload(payload, entry.id ? { SeqID: entry.id } : undefined)
+          if (event) onEvent(event)
+        }
+        return
+      }
+      const parsed = parseEventPayload(trimmed)
+      if (parsed) onEvent(parsed)
+      return
+    }
 
     const items = Array.isArray(raw)
       ? raw
@@ -189,7 +269,7 @@ export function subscribeToJobEvents(
 
       const headers: Record<string, string> = {}
       if (AUTH_TOKEN) headers.Authorization = `Bearer ${AUTH_TOKEN}`
-      if (lastSeqId) headers['Last-Event-Id'] = lastSeqId
+      if (lastSeqId) headers['Last-Event-ID'] = lastSeqId
 
       const response = await fetch(url.toString(), {
         headers,

@@ -3,13 +3,14 @@
  */
 
 /** Available workflow presets */
-export type PresetName = 'deep_research' | 'multi_agent_crew' | 'simple_pipeline'
+export type PresetName = 'deep_research' | 'multi_agent_crew' | 'simple_pipeline' | 'timer_tick'
 
 /** Request payload for creating a job */
 export interface JobRequest {
   $schema: string
   preset_name: PresetName
-  timing_multiplier?: number
+  total_run_time_seconds?: number
+  tick_interval_seconds?: number
 }
 
 /** Event type based on step_id prefix */

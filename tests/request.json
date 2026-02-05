@@ -1,5 +1,6 @@
 {
   "$schema": "urn:sd:schema.workflow-simulator.request.1",
-  "preset_name": "simple_pipeline",
-  "timing_multiplier": 0.5
+  "preset_name": "timer_tick",
+  "total_run_time_seconds": 30,
+  "tick_interval_seconds": 5
 }

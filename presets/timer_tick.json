@@ -1,0 +1,5 @@
+{
+  "name": "timer_tick",
+  "description": "Simple timer that emits one event per tick interval",
+  "phases": []
+}

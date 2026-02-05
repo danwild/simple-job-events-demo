@@ -63,12 +63,12 @@ class WorkflowSimulator:
     emitting IVCAP events with realistic timing.
     """
     
+    MAX_TIMER_SECONDS = 600
     PRESETS_DIR = Path(__file__).parent / "presets"
     
     def __init__(
         self,
         job_context: JobContext,
-        timing_multiplier: float = 1.0,
         logger=None,
     ):
         """
@@ -76,10 +76,8 @@ class WorkflowSimulator:
         
         Args:
             job_context: IVCAP JobContext for emitting events
-            timing_multiplier: Scale factor for delays (0.5 = faster, 2.0 = slower)
         """
         self.job_context = job_context
-        self.timing_multiplier = timing_multiplier
         self._event_count = 0
         self._agents_executed = 0
         self.logger = logger or getLogger("simulator")
@@ -118,9 +116,9 @@ class WorkflowSimulator:
         return [p.stem for p in self.PRESETS_DIR.glob("*.json")]
     
     def _random_delay(self, delay_range_ms: list[int]) -> None:
-        """Sleep for a random duration within the given range, scaled by multiplier."""
+        """Sleep for a random duration within the given range."""
         min_ms, max_ms = delay_range_ms
-        delay_ms = random.randint(min_ms, max_ms) * self.timing_multiplier
+        delay_ms = random.randint(min_ms, max_ms)
         time.sleep(delay_ms / 1000.0)
     
     def _emit_event(self, step_id: str, message: str, finished: bool = False) -> None:
@@ -212,4 +210,40 @@ class WorkflowSimulator:
             agents_executed=self._agents_executed,
             total_events=self._event_count,
             elapsed_seconds=elapsed
+        )
+
+    def run_timer_tick(
+        self,
+        total_run_time_seconds: float,
+        tick_interval_seconds: float,
+    ) -> SimulationResult:
+        """
+        Run a simple timer/tick simulation for a fixed duration.
+
+        Emits one event per tick interval using step_started only.
+        """
+        start_time = time.time()
+        self._event_count = 0
+        self._agents_executed = 0
+
+        end_time = start_time + total_run_time_seconds
+        tick_index = 0
+
+        while time.time() < end_time:
+            tick_index += 1
+            step_id = f"timer:tick:{tick_index}"
+            self._emit_event(step_id, f"Tick {tick_index}")
+
+            remaining = end_time - time.time()
+            if remaining <= 0:
+                break
+            time.sleep(min(tick_interval_seconds, remaining))
+
+        elapsed = time.time() - start_time
+        return SimulationResult(
+            preset_name="timer_tick",
+            phases_completed=0,
+            agents_executed=0,
+            total_events=self._event_count,
+            elapsed_seconds=elapsed,
         )

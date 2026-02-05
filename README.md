@@ -198,10 +198,10 @@ It is designed for developing and testing frontend UX patterns against event str
 
 |            | Description |
 |------------|-------------|
-| **Input**  | `preset_name` (workflow to simulate) and optional `timing_multiplier` |
+| **Input**  | `preset_name` (workflow to simulate) and optional `timer_tick` settings (`total_run_time_seconds` + `tick_interval_seconds`, defaults 60s/5s) |
 | **Output** | Workflow completion stats (phases, agents, events, elapsed time) + streamed events |
 
-Available presets: `deep_research`, `multi_agent_crew`, `simple_pipeline`
+Available presets: `deep_research`, `multi_agent_crew`, `simple_pipeline`, `timer_tick`
 
 See [docs/JOB_EVENTS_DEMO.md](docs/JOB_EVENTS_DEMO.md) for full details.
 
@@ -348,8 +348,7 @@ $ python3 make_request.py http://localhost:8078 tests/request.json
 # Request:
 # {
 #   "$schema": "urn:sd:schema.workflow-simulator.request.1",
-#   "preset_name": "simple_pipeline",
-#   "timing_multiplier": 0.5
+#   "preset_name": "simple_pipeline"
 # }
 # ----------
 #
@@ -552,7 +551,6 @@ to use it.
 class Request(BaseModel):
     jschema: str = Field("urn:sd:schema.workflow-simulator.request.1", alias="$schema")
     preset_name: str = Field(description="Name of the workflow preset to run")
-    timing_multiplier: Optional[float] = Field(default=1.0, description="Scale factor for delays")
 
 class Result(BaseModel):
     jschema: str = Field("urn:sd:schema.workflow-simulator.1", alias="$schema")
