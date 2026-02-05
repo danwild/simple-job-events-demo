@@ -93,6 +93,7 @@ def run_workflow_simulation(req: Request, jobCtxt: JobContext) -> Result:
     - deep_research: Multi-phase research workflow (Search, Analyze, Synthesize)
     - multi_agent_crew: CrewAI-style with multiple specialized agents
     - simple_pipeline: Basic 3-step sequential workflow for baseline testing
+    - timer_tick: Simple timer that emits one event per tick interval
     """
     logger.info(f"Starting workflow simulation with preset: {req.preset_name}")
 

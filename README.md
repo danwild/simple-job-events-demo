@@ -20,7 +20,6 @@ that people typically run into when they are trying this tutorial for the first 
 
 **Quick Start:** Jump straight to [Local Development and Testing](#local-development-and-testing).
 
-
 # Design
 
 Before integrating your tool into Sciansa make sure you consider how your tool will fit into the system architecture.
@@ -28,7 +27,6 @@ Ultimately Sciansa is a modular system with each unit having inputs and outputs.
 abstraction and what you choose as the inputs and outputs for your tool module will effect how useful your tool is
 within the Sciansa ecosystem. Higher level modular design principles can be found in
 [https://github.com/csiro-internal/sciansa-integration](https://github.com/csiro-internal/sciansa-integration).
-
 
 # Beginners
 
@@ -40,7 +38,6 @@ working example as the starting point for your new integration). On GitHub you c
 This guide targets developers who want to integrate classical tools with well defined inputs and outputs. If you want to
 support an agent interaction pattern see the
 [Hybrid section in the Sciansa Integration Docs](https://github.com/csiro-internal/sciansa-integration?tab=readme-ov-file#hybrid-advanced).
-
 
 # Assessing Integration Complexity
 
@@ -88,23 +85,21 @@ Thought that your tool would be easy to integrate based on the above list and th
 Please reach out for help and support. \
 Also, please make update this list to reflect the additional constraints that made the integration more complex.
 
-
 # Technologies
 
 The following matrix defines the technologies you will need to use to integrate your tool. If you are starting from
 scratch it is recommended that you use the default options. If you are integrating an existing tool the matrix
 highlights compatibility.
 
-Type                     | Technology |
--------------------------|------------|
-Source Code Management   | Git        |
-Language                 | Python     |
-Dependency Management    | Poetry     |
-Build System             | Poetry     |
-Deployment               | Docker     |
-Infrastructure Framework | IVCAP      |
-Library                  | Pydantic   |
-
+| Type                     | Technology |
+| ------------------------ | ---------- |
+| Source Code Management   | Git        |
+| Language                 | Python     |
+| Dependency Management    | Poetry     |
+| Build System             | Poetry     |
+| Deployment               | Docker     |
+| Infrastructure Framework | IVCAP      |
+| Library                  | Pydantic   |
 
 IVCAP is the backend infrastructure that all Sciansa modules run on. If you have some familiarity with cloud
 infrastructure, IVCAP is a technology abstraction over the native cloud infrastructure.
@@ -112,13 +107,11 @@ infrastructure, IVCAP is a technology abstraction over the native cloud infrastr
 If you are not familiar with IVCAP the best brief introduction can be found in the IVCAP section of the [Sciansa
 Developer Documentation](https://github.com/csiro-internal/sciansa-integration#IVCAP-quick-start).
 
-
 # Local Development and Testing
 
 We start by building the template "as is" to verify the development environment and start in a known good working state.
 Once you understand how to build, deploy and interact with the service (provide inputs and retrieve outputs - both
 locally and on the deployed instance) you can progressively customise the template with your functionality.
-
 
 ## Install Development Dependencies:
 
@@ -128,11 +121,12 @@ section) to check the dependencies are installed correctly (versions may differ 
 - [Install Git](https://git-scm.com/downloads)
 - [Install IVCAP CLI](https://github.com/ivcap-works/gene-onology-term-mapper?tab=readme-ov-file#step-2-install-ivcap-cli-tool-)
   - Make sure you both install the IVCAP CLI and also configure the IVCAP CLI by running `context create` and
-  `context login`.
+    `context login`.
 - [Install Poetry and Poetry IVCAP Plugin](https://github.com/ivcap-works/gene-onology-term-mapper?tab=readme-ov-file#step-1-install-poetry-and-ivcap-plugin-)
   - Make sure you install Poetry and also the Poetry IVCAP plugin.
 - [Install Docker](https://docs.docker.com/engine/install/)
 - Test Install with:
+
 ```
 $ git version
 # Expect: git version 2.43.0
@@ -172,8 +166,7 @@ $ docker run hello-world
 ```
 
 > **Note:** You can also see [ivcap-cli](https://github.com/ivcap-works/ivcap-cli) repo for more details about the
-IVCAP CLI tool.
-
+> IVCAP CLI tool.
 
 ## Python Code or External Application:
 
@@ -185,28 +178,26 @@ all docs and steps otherwise remain the same.
 The following table highlighs which repository to use as the basis for your implementation. Either way you should use
 the Readme in this repo as the source of your docs.
 
-| Usecase | Where |
-|-|-|
-| Python code you want to import and call | This repository. |
-| External application or script | [https://github.com/csiro-internal/sd-integration-external-tool-template](https://github.com/csiro-internal/sd-integration-external-tool-template) |
-
+| Usecase                                 | Where                                                                                                                                              |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Python code you want to import and call | This repository.                                                                                                                                   |
+| External application or script          | [https://github.com/csiro-internal/sd-integration-external-tool-template](https://github.com/csiro-internal/sd-integration-external-tool-template) |
 
 ## Default Functionality:
 
 This service simulates multi-agent workflows by emitting IVCAP Job Events with realistic timing.
 It is designed for developing and testing frontend UX patterns against event streams.
 
-|            | Description |
-|------------|-------------|
+|            | Description                                                                                                                                   |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Input**  | `preset_name` (workflow to simulate) and optional `timer_tick` settings (`total_run_time_seconds` + `tick_interval_seconds`, defaults 60s/5s) |
-| **Output** | Workflow completion stats (phases, agents, events, elapsed time) + streamed events |
+| **Output** | Workflow completion stats (phases, agents, events, elapsed time) + streamed events                                                            |
 
 Available presets: `deep_research`, `multi_agent_crew`, `simple_pipeline`, `timer_tick`
 
 See [docs/JOB_EVENTS_DEMO.md](docs/JOB_EVENTS_DEMO.md) for full details.
 
 Optional demo UI: `client/` contains a small React app which creates a job via the IVCAP Jobs API and (best-effort) fetches the job's events for display. See `client/README.md`.
-
 
 ## Local Testing:
 
@@ -215,6 +206,7 @@ dependencies into a light weight virtual machine like environment. This is the p
 platform and used to run your code on the IVCAP infrastructure.
 
 There are 2 ways you can run your service locally for development and testing:
+
 - [Inside the container](#inside-the-containder)
 - [Outside the container](#outside-the-containder)
 
@@ -223,22 +215,25 @@ There are 2 ways you can run your service locally for development and testing:
 Testing your functionality inside the container has the advantage that it will run with the same environment that it
 will run on the Sciansa platform. From a development testing perspective the disadvantage of testing using the
 container is:
+
 - Longer build times. Meaning there is an increased lag (between development and testing) when rapidly making changes.
-(The container needs to rebuilt each time you make updates.)
+  (The container needs to rebuilt each time you make updates.)
 - More opaque errors. Because the code is hosted in the container one step removed from the local environment it is
-harder to inspect the running code and see output messages or errors.
+  harder to inspect the running code and see output messages or errors.
 
 ### Outside the container
 
 It is also possible to test your module locally outside the container (directly on your system). In this case you must
 have the dependencies installed (in a virtual environment) directly on your system. From a development testing
 perspective the disadvantage of testing outside the container is:
+
 - Environment may not be representative of the final target environment. This is important for both checking that
-dependencies are specified correctly and also the areas that your module interacts with the system environment.
+  dependencies are specified correctly and also the areas that your module interacts with the system environment.
 
 ### Recommended Development / Testing Methodology
 
 The recommended approach to development / testing is:
+
 1. Start with a working build.
 2. Make changes.
 3. Test locally outside the container (if making dependency changes also test inside the container).
@@ -249,16 +244,16 @@ The recommended approach to development / testing is:
 The following sections will help you to understand how you can test locally both in and outside the container and then
 to deploy the container. It is recommended that you build and deploy the repository "as is" in the first instance so
 that you start from a known good working state. Once you have:
+
 - Built and tested locally (outside the container).
 - Built and tested locally (inside the container).
 - Deployed and tested remotely on the Sciansa/IVCAP platform. \
-you can the progressively update the template to import your functionality (testing incrementally as you go).
+  you can the progressively update the template to import your functionality (testing incrementally as you go).
 
 If you do run into any issues building and testing the template "as is" please do report them, as it either indicates an
 issue in the clarity of the docs or in the template its self, both of which are important that we fix for future
 developers. Every step should be straight forward without requiring you to spend time interpreting the instructions
 or work around any issues.
-
 
 ## Install Template Specific Dependencies and Build:
 
@@ -271,6 +266,7 @@ whether you are installing the dependencies for the "inside" or "outside" the co
   - The following is only needed for running the service in the "outside the container" configuration and creates a
     virtual environment with the necessary dependencies. You only need to do this once or if you have updated your
     dependencies (in (pyproject.toml)).
+
 ```
 $ poetry install --no-root
 # Expect:
@@ -287,8 +283,9 @@ $ poetry install --no-root
   - This packages the code and dependencies into a docker image. The docker image can be used to run the code with its
     dependencies both on your local machine and also from the Sciansa IVCAP infrastructure.
   - Note: It is only necessary to build the container when you want to test locally inside the container (the container
-          will also be built automatically as part of the deployment process). We explain this step up front so that we
-          can explain local testing in and outside of the container in parallel to simplify the description.
+    will also be built automatically as part of the deployment process). We explain this step up front so that we
+    can explain local testing in and outside of the container in parallel to simplify the description.
+
 ```
 $ poetry ivcap docker-build
 # Expect:
@@ -296,7 +293,6 @@ $ poetry ivcap docker-build
 # ...
 # INFO: Docker build completed successfully
 ```
-
 
 ## Test Build:
 
@@ -315,6 +311,7 @@ The following command will start the tool model as a server which listens for in
 data: (choose one of Outside / Inside The Container, then continue with "Call The Service")
 
 **Outside The Container**
+
 ```
 $ poetry ivcap run -- --port 8078
 # Expect:
@@ -327,6 +324,7 @@ $ poetry ivcap run -- --port 8078
 ```
 
 **Inside The Container**
+
 ```
 $ poetry ivcap docker-run -- --port 8078
 # Expect:
@@ -342,6 +340,7 @@ $ poetry ivcap docker-run -- --port 8078
 
 **Call The Service**
 In a separate terminal, call the service as follows (which supplies the input data from the file `tests/request.json`).
+
 ```
 $ python3 make_request.py http://localhost:8078 tests/request.json
 # Expect:
@@ -368,6 +367,7 @@ $ python3 make_request.py http://localhost:8078 tests/request.json
 ```
 
 The output from this command shows 3 things:
+
 - The data in the call that was made to the service (`Request`).
 - The HTTP response headers we receive from the packaged tool (`Response Headers`).
 - The data in the response we received from the packaged tool (that 997 is prime) (`Response Data`).
@@ -381,6 +381,7 @@ service creates if you are familiar with web APIs.
 <img src="openapi.png" width="400"/>
 
 You may also want to use a standard tool on your system to make the requests. For instance shown here with `curl`:
+
 ```
 $ curl -i -X POST \
     -H "content-type: application/json" \
@@ -398,8 +399,7 @@ $ curl -i -X POST \
 ```
 
 > **Remember:** After making changes if you are testing in the container you will need to rebuild the container
-(explained in the previous step) before your changes will have effect.
-
+> (explained in the previous step) before your changes will have effect.
 
 # Deployment
 
@@ -410,21 +410,20 @@ something that works and progressively increase the understanding and customisat
 
 There are 2 options for remote deployment:
 
-| | |
-|----------------------------------|-------------------------------------------|
+|                                  |                                                                                                                                                        |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Automated deployment (Preferred) | - Requirement: All code / models pushed to GitHub repo. </br> - Runs an automated job to build and deploy the container. </br> Advantage: Reproducible |
-| Manual deployment                | - Requirement: Developer must understand deployment process. </br> - You manually build and upload your tool. |
-
+| Manual deployment                | - Requirement: Developer must understand deployment process. </br> - You manually build and upload your tool.                                          |
 
 ## Automated Deployment
 
 - _TODO: To Be Defined. Not yet implemented._
 
-
 ## Manual Deployment
 
 Deployment is a multistep process run from a single command. As the process is a multistep process you must verify that
 all of the intermediate steps indicated they completed successfully:
+
 ```
 $ poetry ivcap deploy
 # Expect:
@@ -447,12 +446,12 @@ $ poetry ivcap deploy
 # INFO: tool description successfully uploaded - urn:ivcap:aspect:00000000-0000-0000-0000-000000000000
 ```
 
-
 ### Test deployed Service
 
 After you have deployed the service you can test the deployment using the following steps.
 
 Run `poetry ivcap job-exec tests/request.json` to execute the workflow simulation:
+
 ```
 $ poetry ivcap job-exec tests/request.json
 # Expect:
@@ -472,13 +471,13 @@ $ poetry ivcap job-exec tests/request.json
 The input data that is supplied to the tool is in `tests/request.json`.
 
 The output from this command shows 2 things:
+
 - A job was created - that is the tool was scheduled to be run (`Creating job...`).
 - Shows the data in the response we received from the packaged tool (matches the data from the local run).
 
 > For a more in-depth description of deployment, please refer to
-[Step 8: Deploying to IVCAP](https://github.com/ivcap-works/gene-onology-term-mapper?tab=readme-ov-file#step-8-deploying-to-ivcap-)
-in the [Gene Ontology (GO) Term Mapper](https://github.com/ivcap-works/gene-onology-term-mapper) tutorial.
-
+> [Step 8: Deploying to IVCAP](https://github.com/ivcap-works/gene-onology-term-mapper?tab=readme-ov-file#step-8-deploying-to-ivcap-)
+> in the [Gene Ontology (GO) Term Mapper](https://github.com/ivcap-works/gene-onology-term-mapper) tutorial.
 
 # Updating the Template
 
@@ -567,6 +566,7 @@ def run_workflow_simulation(req: Request, jobCtxt: JobContext) -> Result:
 ```
 
 Finally, we need to start the server to listen for incoming requests:
+
 ```
 # Start server
 if __name__ == "__main__":
@@ -579,15 +579,14 @@ This file contains the resource requirements for this tool. This will depend on 
 requirements for the specific tool. If it is not provided a default will be used which is likely very similar
 to this file.
 
-
 # Next Steps
 
 Great you have completed the introductory tutorial. You may now want to look at a more advanced tutorial. See:
+
 - [Beyond Basics](https://github.com/csiro-internal/sciansa-integration/blob/main/ExternalToolBeyondBasics.md):
-Introduces some topics you might need when you want to integrate real tools.
+  Introduces some topics you might need when you want to integrate real tools.
 - [Advanced tool tutorial](https://github.com/ivcap-works/gene-onology-term-mapper)
 - [Example Integrations](https://github.com/csiro-internal/sciansa-integration?tab=readme-ov-file#example-integrations)
-
 
 # Common Issues
 
@@ -595,11 +594,13 @@ TODO: List common issues that people run into here and what the cause of the iss
 error keywords that people can search for if they happen to hit the same error.
 
 ## Brief Example Error Name
+
 ```
 Error
 ```
 
 **Cause and Fix**
+
 ```
 $ echo "Hello World!"
 ```
@@ -607,6 +608,7 @@ $ echo "Hello World!"
 # Maintainers Notes
 
 Here are some dot points to help future maintainers of this document and this repo:
+
 - **Intended Audience:**
   - Assumed to have a competent understanding of the tool they plan to integrate.
   - Assumed to be a domain expert with competent level of programming proficiency. The assumption is that the developers
