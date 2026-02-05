@@ -18,6 +18,22 @@ function App() {
   const submitToExecuteSeconds = (state.submittedAt && state.executingAt)
     ? Math.max(0, (state.executingAt.getTime() - state.submittedAt.getTime()) / 1000)
     : null
+  const submitToExitSeconds = (state.submittedAt && state.finishedAt)
+    ? Math.max(0, (state.finishedAt.getTime() - state.submittedAt.getTime()) / 1000)
+    : null
+  const firstEventAt = state.events.length > 0
+    ? state.events.reduce((earliest, event) => (
+      event.timestamp < earliest ? event.timestamp : earliest
+    ), state.events[0].timestamp)
+    : null
+  const submitToFirstEventSeconds = (state.submittedAt && firstEventAt)
+    ? Math.max(0, (firstEventAt.getTime() - state.submittedAt.getTime()) / 1000)
+    : null
+  const submitToExecuteLabel = submitToExecuteSeconds != null ? `${submitToExecuteSeconds.toFixed(2)}s` : 'Waiting...'
+  const submitToFirstEventLabel = submitToFirstEventSeconds != null
+    ? `${submitToFirstEventSeconds.toFixed(2)}s`
+    : (state.eventsConnectionStatus === 'error' ? 'Unavailable' : 'Waiting...')
+  const submitToExitLabel = submitToExitSeconds != null ? `${submitToExitSeconds.toFixed(2)}s` : 'Waiting...'
 
   const handleStart = () => {
     startWorkflow(selectedPreset, 0.5) // Use 0.5x timing for faster demo
@@ -104,15 +120,48 @@ function App() {
                     Job: {state.jobId}
                   </span>
                 )}
-                {submitToExecuteSeconds != null && (
-                  <span className="text-muted-foreground text-xs">
-                    Submit-&gt;Execute: {submitToExecuteSeconds.toFixed(2)}s
-                  </span>
-                )}
               </div>
             )}
           </CardContent>
         </Card>
+
+        {/* Timing Summary */}
+        {state.status !== 'idle' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Timing Summary</CardTitle>
+              <CardDescription>
+                Key time deltas from job submission
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="rounded-lg border bg-muted/30 p-4">
+                <div className="text-xs font-medium uppercase text-muted-foreground">
+                  Submit to executing
+                </div>
+                <div className="mt-1 text-3xl font-semibold tracking-tight">
+                  {submitToExecuteLabel}
+                </div>
+              </div>
+              <div className="rounded-lg border bg-muted/30 p-4">
+                <div className="text-xs font-medium uppercase text-muted-foreground">
+                  Submit to first event
+                </div>
+                <div className="mt-1 text-3xl font-semibold tracking-tight">
+                  {submitToFirstEventLabel}
+                </div>
+              </div>
+              <div className="rounded-lg border bg-muted/30 p-4">
+                <div className="text-xs font-medium uppercase text-muted-foreground">
+                  Submit to exit
+                </div>
+                <div className="mt-1 text-3xl font-semibold tracking-tight">
+                  {submitToExitLabel}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Event Stream */}
         <Card>

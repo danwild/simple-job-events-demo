@@ -42,6 +42,8 @@ export interface WorkflowState {
   submittedAt: Date | null
   /** Local timestamp when job first entered executing */
   executingAt: Date | null
+  /** Local timestamp when job exited (terminal state) */
+  finishedAt: Date | null
   events: JobEvent[]
   error: string | null
 }

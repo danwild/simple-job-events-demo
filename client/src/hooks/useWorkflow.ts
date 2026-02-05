@@ -15,6 +15,7 @@ const initialState: WorkflowState = {
   jobId: null,
   submittedAt: null,
   executingAt: null,
+  finishedAt: null,
   events: [],
   error: null,
 }
@@ -70,6 +71,7 @@ export function useWorkflow(): UseWorkflowReturn {
       jobId: null,
       submittedAt,
       executingAt: null,
+      finishedAt: null,
       events: [],
       error: null,
     })
@@ -93,12 +95,18 @@ export function useWorkflow(): UseWorkflowReturn {
           const status = String(job.status || '').toLowerCase()
 
           // Always reflect the raw job status from IVCAP (this is the only status we show)
+          const finishedAt = job.finishedAt ? new Date(job.finishedAt) : null
           setState(prev => {
             const shouldSetExecutingAt = status === 'executing' && prev.executingAt == null
+            const shouldSetFinishedAt = (
+              (terminalSuccess.has(status) || terminalError.has(status))
+              && prev.finishedAt == null
+            )
             return {
               ...prev,
               status: (status || 'pending') as WorkflowState['status'],
               executingAt: shouldSetExecutingAt ? new Date() : prev.executingAt,
+              finishedAt: shouldSetFinishedAt ? (finishedAt || new Date()) : prev.finishedAt,
             }
           })
 
