@@ -10,7 +10,7 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.10,<4.0"
 dependencies = [
-    "ivcap-ai-tool (>=0.7.15,<0.8.0)",
+    "ivcap-ai-tool (>=0.7.22,<0.8.0)",
     "pydantic (>=2.11.4,<3.0.0)"
 ]
 
