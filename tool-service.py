@@ -31,7 +31,8 @@ class Request(BaseModel):
     jschema: str = Field(
         "urn:sd:schema.workflow-simulator.request.1", alias="$schema")
     # Input values.
-    preset_name: str = Field(
+    preset_name: Optional[str] = Field(
+        default=None,
         description="Name of the workflow preset to run (e.g., 'deep_research', 'multi_agent_crew', 'simple_pipeline', 'timer_tick')"
     )
     total_run_time_seconds: Optional[float] = Field(
@@ -41,6 +42,22 @@ class Request(BaseModel):
     tick_interval_seconds: Optional[float] = Field(
         default=5.0,
         description="Tick interval for timer_tick preset (seconds)"
+    )
+    messages: Optional[list["ChatMessage"]] = Field(
+        default=None,
+        description="Conversation messages to send to the chat model",
+    )
+    model: Optional[str] = Field(
+        default="gpt-5-mini",
+        description="Model name resolved by the LiteLLM proxy",
+    )
+    temperature: Optional[float] = Field(
+        default=None,
+        description="Optional sampling temperature for the model request",
+    )
+    max_tokens: Optional[int] = Field(
+        default=None,
+        description="Optional upper bound for generated tokens",
     )
 
     # An example showing how to supply the input data.
@@ -58,10 +75,15 @@ class Result(BaseModel):
     jschema: str = Field("urn:sd:schema.workflow-simulator.1", alias="$schema")
     # Result values.
     message: str = Field(description="Success message on workflow completion")
-    preset_name: str = Field(
+    preset_name: Optional[str] = Field(
+        default=None,
         description="Name of the preset that was executed")
-    phases_completed: int = Field(description="Number of phases completed")
-    agents_executed: int = Field(description="Number of agents that executed")
+    phases_completed: Optional[int] = Field(default=None, description="Number of phases completed")
+    agents_executed: Optional[int] = Field(default=None, description="Number of agents that executed")
+    model: Optional[str] = Field(default=None, description="Model used for completion")
+    response_text: Optional[str] = Field(default=None, description="Final response text assembled from streamed chunks")
+    chunks_emitted: Optional[int] = Field(default=None, description="Number of streamed chunks emitted as Job Events")
+    approx_tokens_emitted: Optional[int] = Field(default=None, description="Approximate token count based on streamed chunk text")
     total_events: int = Field(description="Total number of events emitted")
     elapsed_seconds: float = Field(
         description="Total execution time in seconds")
@@ -85,6 +107,9 @@ class ChatMessage(BaseModel):
         description="Role of this chat message"
     )
     content: str = Field(description="Text content of the message")
+
+
+Request.model_rebuild()
 
 
 class ChatRequest(BaseModel):
@@ -161,6 +186,48 @@ def run_workflow_simulation(req: Request, jobCtxt: JobContext) -> Result:
     - simple_pipeline: Basic 3-step sequential workflow for baseline testing
     - timer_tick: Simple timer that emits one event per tick interval
     """
+    is_chat_request = (
+        req.jschema == "urn:sd:schema.workflow-simulator.chat.request.1"
+        or bool(req.messages)
+    )
+
+    if is_chat_request:
+        if not req.messages:
+            raise ValueError("messages must contain at least one chat message")
+
+        logger.info("Starting chat simulation with model: %s", req.model)
+        simulator = ChatSimulator(job_context=jobCtxt, logger=logger)
+        result = simulator.run_streaming_chat(
+            messages=[m.model_dump() for m in req.messages],
+            model=req.model or "gpt-5-mini",
+            temperature=req.temperature,
+            max_tokens=req.max_tokens,
+        )
+        logger.info(
+            "Chat completed: model=%s chunks=%s approx_tokens=%s total_events=%s elapsed=%.2fs",
+            result.model,
+            result.chunks_emitted,
+            result.approx_tokens_emitted,
+            result.total_events,
+            result.elapsed_seconds,
+        )
+        return Result(
+            jschema="urn:sd:schema.workflow-simulator.chat.result.1",
+            message="Chat completed successfully",
+            model=result.model,
+            response_text=result.response_text,
+            chunks_emitted=result.chunks_emitted,
+            approx_tokens_emitted=result.approx_tokens_emitted,
+            total_events=result.total_events,
+            elapsed_seconds=round(result.elapsed_seconds, 2),
+        )
+
+    if not req.preset_name:
+        raise ValueError(
+            "preset_name is required for workflow mode; for chat mode provide "
+            "$schema=urn:sd:schema.workflow-simulator.chat.request.1 and messages[]"
+        )
+
     logger.info(f"Starting workflow simulation with preset: {req.preset_name}")
 
     # Create simulator with the job context

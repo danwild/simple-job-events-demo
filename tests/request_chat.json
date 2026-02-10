@@ -4,13 +4,13 @@
   "messages": [
     {
       "role": "system",
-      "content": "You are concise and helpful."
+      "content": "You are a knowledgeable AI engineer. Provide detailed, well-structured answers with practical examples and code snippets where helpful."
     },
     {
       "role": "user",
-      "content": "Explain in one sentence why streaming tokens improves chat UX."
+      "content": "Explain the core design patterns behind modern AI agent architectures. Cover: ReAct (reasoning + acting), tool-use and function calling, multi-agent orchestration, and memory/context management. For each pattern, describe how it works, when you would choose it, its limitations, and give a concrete example of a framework or system that implements it (e.g. LangGraph, CrewAI, AutoGen, etc.)."
     }
   ],
-  "temperature": 1,
-  "max_tokens": 128
+  "temperature": 0.7,
+  "max_tokens": 1024
 }

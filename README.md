@@ -199,6 +199,13 @@ This service demonstrates two event-driven patterns over IVCAP Job Events:
 
 Available workflow presets: `deep_research`, `multi_agent_crew`, `simple_pipeline`, `timer_tick`
 
+For deployed Jobs API calls (`POST /1/services2/{service_urn}/jobs`), input validation uses the primary tool request schema.
+This repository's request model accepts both workflow and chat fields so the same Jobs endpoint can run either mode.
+To select chat mode via Jobs API, send:
+
+- `$schema: urn:sd:schema.workflow-simulator.chat.request.1` (recommended), and
+- `messages[]`
+
 Chat mode requires:
 
 - `LITELLM_PROXY` (backend): LiteLLM proxy base URL.

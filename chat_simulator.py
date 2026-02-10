@@ -103,6 +103,15 @@ class ChatSimulator:
         with self.job_context.report.step("chat:error", message=safe_message):
             self._event_count += 2
 
+    # -- Token batching configuration ------------------------------------------
+    # Tokens from the LLM stream are accumulated and flushed as a single Job
+    # Event when either threshold is exceeded.  This dramatically reduces the
+    # number of events emitted (and therefore the end-to-end latency perceived
+    # by the client) while the client-side typewriter animation smooths out the
+    # visual presentation.
+    BATCH_FLUSH_INTERVAL_S = 0.3   # flush at most every 300 ms
+    BATCH_FLUSH_MAX_TOKENS = 20    # or when 20 chunks have accumulated
+
     def run_streaming_chat(
         self,
         messages: list[dict],
@@ -115,6 +124,25 @@ class ChatSimulator:
         chunks_emitted = 0
         approx_tokens_emitted = 0
         response_chunks: list[str] = []
+
+        # -- Batch state -------------------------------------------------------
+        batch_buffer: list[str] = []
+        batch_num = 0
+        last_flush = time.monotonic()
+
+        def flush_batch() -> None:
+            """Emit a single Job Event containing all buffered token text."""
+            nonlocal batch_num, last_flush
+            if not batch_buffer:
+                return
+            batch_num += 1
+            text = "".join(batch_buffer)
+            batch_buffer.clear()
+            last_flush = time.monotonic()
+            with self.job_context.report.step(
+                f"chat:tokens:{batch_num}", message=text
+            ):
+                self._event_count += 2  # start + finish
 
         try:
             headers = {
@@ -193,10 +221,16 @@ class ChatSimulator:
                                 approx_tokens_emitted += max(1, len(delta.split()))
                                 response_chunks.append(delta)
 
-                                with self.job_context.report.step(
-                                    f"chat:token:{chunks_emitted}", message=delta
+                                # Buffer the token and flush when thresholds are met
+                                batch_buffer.append(delta)
+                                if (
+                                    len(batch_buffer) >= self.BATCH_FLUSH_MAX_TOKENS
+                                    or time.monotonic() - last_flush >= self.BATCH_FLUSH_INTERVAL_S
                                 ):
-                                    self._event_count += 2
+                                    flush_batch()
+
+                            # Flush any remaining buffered tokens
+                            flush_batch()
 
                             response_step.finished(f"Completed streaming {chunks_emitted} chunks")
                             self._event_count += 1

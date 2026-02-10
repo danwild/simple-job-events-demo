@@ -125,7 +125,7 @@ export async function createChatJob(
 }
 
 export function isChatTokenEvent(event: JobEvent): boolean {
-  return event.step_id.startsWith('chat:token:')
+  return event.step_id.startsWith('chat:token:') || event.step_id.startsWith('chat:tokens:')
 }
 
 export function getChatTokenText(event: JobEvent): string {
@@ -198,7 +198,9 @@ export function subscribeToJobEvents(
   let hasConnected = false
   let sawTerminalStatus = false
   const maxMessages = 100
-  const maxWaitSeconds = 25
+  const maxWaitSeconds = 20
+  const requestTimeoutMs = 35_000 // client-side timeout: slightly above server's max-wait-time
+  const maxConsecutiveErrors = 5
 
   console.log('[events] Subscribing to:', eventsUrl)
 
@@ -383,76 +385,107 @@ export function subscribeToJobEvents(
   // ---------------------------------------------------------------------------
 
   const poll = async () => {
+    let consecutiveErrors = 0
+
     while (!abortController.signal.aborted && !sawTerminalStatus) {
-      const url = new URL(eventsUrl)
-      url.searchParams.set('max-messages', String(maxMessages))
-      url.searchParams.set('max-wait-time', String(maxWaitSeconds))
+      try {
+        const url = new URL(eventsUrl)
+        url.searchParams.set('max-messages', String(maxMessages))
+        url.searchParams.set('max-wait-time', String(maxWaitSeconds))
 
-      const headers: Record<string, string> = {
-        Accept: 'text/event-stream',
-      }
-      if (AUTH_TOKEN) headers.Authorization = `Bearer ${AUTH_TOKEN}`
-      if (lastSeqId) headers['Last-Event-ID'] = lastSeqId
+        const headers: Record<string, string> = {
+          Accept: 'text/event-stream',
+        }
+        if (AUTH_TOKEN) headers.Authorization = `Bearer ${AUTH_TOKEN}`
+        if (lastSeqId) headers['Last-Event-ID'] = lastSeqId
 
-      console.log('[events] Fetching:', url.toString(), lastSeqId ? `(after ${lastSeqId})` : '(initial)')
+        console.log('[events] Fetching:', url.toString(), lastSeqId ? `(after ${lastSeqId})` : '(initial)')
 
-      const response = await fetch(url.toString(), {
-        headers,
-        signal: abortController.signal,
-      })
+        // Combine the caller's abort signal with a per-request timeout so
+        // hung connections don't block forever.
+        const timeoutSignal = AbortSignal.timeout(requestTimeoutMs)
+        const combinedSignal = AbortSignal.any([abortController.signal, timeoutSignal])
 
-      console.log('[events] Response:', response.status, response.headers.get('content-type'))
+        const response = await fetch(url.toString(), {
+          headers,
+          signal: combinedSignal,
+        })
 
-      if (response.status === 204) {
+        console.log('[events] Response:', response.status, response.headers.get('content-type'))
+
+        if (response.status === 204) {
+          markConnected()
+          consecutiveErrors = 0
+          continue
+        }
+
+        if (!response.ok && response.status !== 101) {
+          const text = await response.text()
+          throw new Error(`Events request failed: ${response.status} - ${text}`)
+        }
+
         markConnected()
-        continue
-      }
 
-      if (!response.ok && response.status !== 101) {
-        const text = await response.text()
-        throw new Error(`Events request failed: ${response.status} - ${text}`)
-      }
+        const contentType = response.headers.get('content-type') || ''
 
-      markConnected()
-
-      const contentType = response.headers.get('content-type') || ''
-
-      if (contentType.includes('text/event-stream')) {
-        // SSE stream – read incrementally so events appear in real-time
-        await readSseStream(response)
-      } else {
-        // JSON or other – read the whole body and parse
-        const text = await response.text()
-        if (!text.trim()) continue
-
-        try {
-          const json = JSON.parse(text)
-          const items: unknown[] = Array.isArray(json)
-            ? json
-            : ((json as Record<string, unknown>).events as unknown[])
-              || ((json as Record<string, unknown>).items as unknown[])
-              || [json]
-
-          for (const item of items) {
-            const rec = item as Record<string, unknown>
-            const seqId = rec.SeqID as string
-            if (seqId) lastSeqId = seqId
-            const event = parseIvcapEnvelope(rec)
-            if (event) onEvent(event)
+        if (contentType.includes('text/event-stream')) {
+          // SSE stream – read incrementally so events appear in real-time
+          await readSseStream(response)
+        } else {
+          // JSON or other – read the whole body and parse
+          const text = await response.text()
+          if (!text.trim()) {
+            consecutiveErrors = 0
+            continue
           }
-        } catch {
-          // Last resort: try treating the body as SSE text
-          for (const block of text.split('\n\n')) {
-            processSseBlock(block)
+
+          try {
+            const json = JSON.parse(text)
+            const items: unknown[] = Array.isArray(json)
+              ? json
+              : ((json as Record<string, unknown>).events as unknown[])
+                || ((json as Record<string, unknown>).items as unknown[])
+                || [json]
+
+            for (const item of items) {
+              const rec = item as Record<string, unknown>
+              const seqId = rec.SeqID as string
+              if (seqId) lastSeqId = seqId
+              const event = parseIvcapEnvelope(rec)
+              if (event) onEvent(event)
+            }
+          } catch {
+            // Last resort: try treating the body as SSE text
+            for (const block of text.split('\n\n')) {
+              processSseBlock(block)
+            }
           }
         }
+
+        // Successful iteration — reset error counter
+        consecutiveErrors = 0
+      } catch (err) {
+        // If the caller aborted, exit cleanly
+        if (abortController.signal.aborted) return
+
+        consecutiveErrors++
+        console.warn(`[events] Poll error (${consecutiveErrors}/${maxConsecutiveErrors}):`, err)
+
+        if (consecutiveErrors >= maxConsecutiveErrors) {
+          throw err // give up after too many consecutive failures
+        }
+
+        // Exponential backoff: 1s, 2s, 4s, 8s, capped at 10s
+        const delay = Math.min(1000 * 2 ** (consecutiveErrors - 1), 10_000)
+        console.log(`[events] Retrying in ${delay}ms...`)
+        await new Promise(resolve => setTimeout(resolve, delay))
       }
     }
   }
 
   void poll().catch((err) => {
     const error = err instanceof Error ? err : new Error(String(err))
-    if (error.name !== 'AbortError') {
+    if (error.name !== 'AbortError' && error.name !== 'TimeoutError') {
       console.error('[events] Fetch error:', error)
       onError(error)
     }
