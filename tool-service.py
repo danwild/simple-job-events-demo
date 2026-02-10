@@ -1,10 +1,11 @@
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional
+from typing import Optional, Literal
 
 from ivcap_service import getLogger, Service, JobContext
 from ivcap_ai_tool import start_tool_server, ToolOptions, ivcap_ai_tool, logging_init
 
 from simulator import WorkflowSimulator
+from chat_simulator import ChatSimulator
 
 logging_init()
 logger = getLogger("app")
@@ -79,6 +80,71 @@ class Result(BaseModel):
     })
 
 
+class ChatMessage(BaseModel):
+    role: Literal["system", "user", "assistant"] = Field(
+        description="Role of this chat message"
+    )
+    content: str = Field(description="Text content of the message")
+
+
+class ChatRequest(BaseModel):
+    jschema: str = Field(
+        "urn:sd:schema.workflow-simulator.chat.request.1", alias="$schema"
+    )
+    messages: list[ChatMessage] = Field(
+        description="Conversation messages to send to the chat model"
+    )
+    model: str = Field(
+        default="gpt-5-mini",
+        description="Model name resolved by the LiteLLM proxy",
+    )
+    temperature: Optional[float] = Field(
+        default=None,
+        description="Optional sampling temperature for the model request",
+    )
+    max_tokens: Optional[int] = Field(
+        default=None,
+        description="Optional upper bound for generated tokens",
+    )
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "$schema": "urn:sd:schema.workflow-simulator.chat.request.1",
+            "model": "gpt-5-mini",
+            "messages": [
+                {"role": "system", "content": "You are concise and helpful."},
+                {"role": "user", "content": "Summarize the benefits of event streaming in one sentence."}
+            ]
+        }
+    })
+
+
+class ChatResult(BaseModel):
+    jschema: str = Field(
+        "urn:sd:schema.workflow-simulator.chat.result.1", alias="$schema"
+    )
+    message: str = Field(description="Success message on chat completion")
+    model: str = Field(description="Model used for completion")
+    response_text: str = Field(description="Final response text assembled from streamed chunks")
+    chunks_emitted: int = Field(description="Number of streamed chunks emitted as Job Events")
+    approx_tokens_emitted: int = Field(description="Approximate token count based on streamed chunk text")
+    total_events: int = Field(description="Total number of events emitted by this chat run")
+    elapsed_seconds: float = Field(description="Total execution time in seconds")
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "$schema": "urn:sd:schema.workflow-simulator.chat.result.1",
+            "message": "Chat completed successfully",
+            "model": "gpt-5-mini",
+            "response_text": "Event streaming improves responsiveness by delivering partial output immediately.",
+            "chunks_emitted": 12,
+            "approx_tokens_emitted": 24,
+            "total_events": 31,
+            "elapsed_seconds": 2.41
+        }
+    })
+
+
 # API Functionality.
 @ivcap_ai_tool("/", opts=ToolOptions(tags=["Workflow Simulator"]))
 def run_workflow_simulation(req: Request, jobCtxt: JobContext) -> Result:
@@ -138,6 +204,46 @@ def run_workflow_simulation(req: Request, jobCtxt: JobContext) -> Result:
         agents_executed=result.agents_executed,
         total_events=result.total_events,
         elapsed_seconds=round(result.elapsed_seconds, 2)
+    )
+
+
+@ivcap_ai_tool("/chat", opts=ToolOptions(tags=["Workflow Simulator", "Chatbot"]))
+def run_chat_simulation(req: ChatRequest, jobCtxt: JobContext) -> ChatResult:
+    """
+    Streams a chat completion through LiteLLM and forwards chunks as Job Events.
+
+    Requires backend environment:
+    - LITELLM_PROXY: LiteLLM proxy base URL
+    - IVCAP_JWT: bearer token used for proxy authentication
+    """
+    if not req.messages:
+        raise ValueError("messages must contain at least one chat message")
+
+    logger.info("Starting chat simulation with model: %s", req.model)
+    simulator = ChatSimulator(job_context=jobCtxt, logger=logger)
+    result = simulator.run_streaming_chat(
+        messages=[m.model_dump() for m in req.messages],
+        model=req.model,
+        temperature=req.temperature,
+        max_tokens=req.max_tokens,
+    )
+
+    logger.info(
+        "Chat completed: model=%s chunks=%s approx_tokens=%s total_events=%s elapsed=%.2fs",
+        result.model,
+        result.chunks_emitted,
+        result.approx_tokens_emitted,
+        result.total_events,
+        result.elapsed_seconds,
+    )
+    return ChatResult(
+        message="Chat completed successfully",
+        model=result.model,
+        response_text=result.response_text,
+        chunks_emitted=result.chunks_emitted,
+        approx_tokens_emitted=result.approx_tokens_emitted,
+        total_events=result.total_events,
+        elapsed_seconds=round(result.elapsed_seconds, 2),
     )
 
 

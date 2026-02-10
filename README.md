@@ -185,15 +185,29 @@ the Readme in this repo as the source of your docs.
 
 ## Default Functionality:
 
-This service simulates multi-agent workflows by emitting IVCAP Job Events with realistic timing.
-It is designed for developing and testing frontend UX patterns against event streams.
+This service demonstrates two event-driven patterns over IVCAP Job Events:
 
-|            | Description                                                                                                                                   |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Input**  | `preset_name` (workflow to simulate) and optional `timer_tick` settings (`total_run_time_seconds` + `tick_interval_seconds`, defaults 60s/5s) |
-| **Output** | Workflow completion stats (phases, agents, events, elapsed time) + streamed events                                                            |
+- Workflow simulation with realistic multi-agent step events.
+- Chatbot streaming via LiteLLM with incremental `chat:token:*` events.
 
-Available presets: `deep_research`, `multi_agent_crew`, `simple_pipeline`, `timer_tick`
+|            | Description |
+| ---------- | ----------- |
+| **Workflow Input (`POST /`)** | `preset_name` and optional timer settings (`total_run_time_seconds`, `tick_interval_seconds`) |
+| **Workflow Output (`POST /`)** | Workflow summary stats plus emitted Job Events |
+| **Chat Input (`POST /chat`)** | `messages[]`, optional `model`, optional generation settings |
+| **Chat Output (`POST /chat`)** | Aggregated chat text, chunk/token counts, elapsed time, plus streamed `chat:*` Job Events |
+
+Available workflow presets: `deep_research`, `multi_agent_crew`, `simple_pipeline`, `timer_tick`
+
+Chat mode requires:
+
+- `LITELLM_PROXY` (backend): LiteLLM proxy base URL.
+- Backend -> LiteLLM auth token:
+  - Deployed jobs: taken automatically from `JobContext.job_authorization`.
+  - Local runs: set `IVCAP_JWT` manually.
+- `VITE_AUTH_TOKEN` (client): Bearer token for client -> IVCAP Jobs API requests.
+
+When running locally, set `IVCAP_JWT` explicitly if your environment does not inject it.
 
 See [docs/JOB_EVENTS_DEMO.md](docs/JOB_EVENTS_DEMO.md) for full details.
 
@@ -339,7 +353,7 @@ $ poetry ivcap docker-run -- --port 8078
 ```
 
 **Call The Service**
-In a separate terminal, call the service as follows (which supplies the input data from the file `tests/request.json`).
+In a separate terminal, call the workflow service as follows (which supplies the input data from `tests/request.json`).
 
 ```
 $ python3 make_request.py http://localhost:8078 tests/request.json
@@ -373,6 +387,14 @@ The output from this command shows 3 things:
 - The data in the response we received from the packaged tool (that 997 is prime) (`Response Data`).
 
 You can also see the input data that was supplied which is in [tests/request.json](tests/request.json).
+
+To call the chat endpoint locally (after setting `LITELLM_PROXY` and `IVCAP_JWT`):
+
+```
+$ LITELLM_PROXY=https://litellm-proxy.example.com \
+  IVCAP_JWT=<same-token-used-for-VITE_AUTH_TOKEN> \
+  python3 make_request.py http://localhost:8078/chat tests/request_chat.json
+```
 
 You can also verify the build and view the web service is available by navigating to
 [http://localhost:8078/api](http://localhost:8078/api). Here you will find the OpenAPI spec for the endpoints the
@@ -470,6 +492,12 @@ $ poetry ivcap job-exec tests/request.json
 
 The input data that is supplied to the tool is in `tests/request.json`.
 
+Run `poetry ivcap job-exec tests/request_chat.json` to execute chat mode (with `LITELLM_PROXY` and `IVCAP_JWT` configured in the runtime environment):
+
+```
+$ poetry ivcap job-exec tests/request_chat.json -- --stream --raw-events
+```
+
 The output from this command shows 2 things:
 
 - A job was created - that is the tool was scheduled to be run (`Creating job...`).
@@ -495,7 +523,8 @@ might need to modify when updating the template with your implementation.
 **Request:** Input data structure. The general format is key value pairs. Update to take the values that you need to
 supply to your tool. This is a Pydantic data structure you can see the Pydantic docs if you need additional features. \
 **Result:** Output data structure. Same as `Request`. \
-`@ivcap_ai_tool / def run_workflow_simulation`: Defines the operation you provide. Update to provide your functionality.
+`@ivcap_ai_tool / def run_workflow_simulation`: Workflow simulation operation.
+`@ivcap_ai_tool /chat def run_chat_simulation`: Chat streaming operation via LiteLLM proxy.
 
 `pyproject.toml`: Project details and dependencies.
 
@@ -503,7 +532,10 @@ supply to your tool. This is a Pydantic data structure you can see the Pydantic 
 
 ### [tool-service.py](./tool-service.py)
 
-Implements an HTTP based service which provides a `POST /` service endpoint to run workflow simulations.
+Implements an HTTP based service with:
+
+- `POST /` for workflow simulation.
+- `POST /chat` for streamed chat completions via LiteLLM proxy.
 
 We first import a few library functions and configure the logging system to use a more "machine" friendly format to
 simplify service monitoring on the platform.
@@ -536,13 +568,13 @@ service = Service(
 )
 ```
 
-The core function of the tool itself is accessible as `POST /`. The service signature should be kept as simple as
+The core functions of the tool are accessible as `POST /` and `POST /chat`. The service signatures should be kept as simple as
 possible.
 We highly recommend defining the input as well as the result by a single `pydantic` model, respectively.
 However, for a tool to be properly used by an Agent, we should provide a comprehensive function documentation including
 the required parameters as well as the reply.
 
-Please also note the `@ivcap_ai_tool` decorator. It exposes the service via `POST \`, but also a `GET /` to allow the
+Please also note the `@ivcap_ai_tool` decorator. It exposes service operations via `POST` routes, and a `GET /` to allow the
 platform to obtain the tool description which can be used by agents to select the right tool but also understand on how
 to use it.
 
@@ -563,6 +595,11 @@ def run_workflow_simulation(req: Request, jobCtxt: JobContext) -> Result:
     """
     ...
     return Result(message="Workflow completed successfully", ...)
+
+@ivcap_ai_tool("/chat", opts=ToolOptions(tags=["Workflow Simulator", "Chatbot"]))
+def run_chat_simulation(req: ChatRequest, jobCtxt: JobContext) -> ChatResult:
+    ...
+    return ChatResult(message="Chat completed successfully", ...)
 ```
 
 Finally, we need to start the server to listen for incoming requests:

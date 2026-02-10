@@ -8,6 +8,7 @@ RUN poetry config virtualenvs.create false && poetry install --no-root
 
 # Get service files
 COPY tool-service.py ./
+COPY chat_simulator.py ./
 COPY simulator.py ./
 COPY presets/ ./presets/
 

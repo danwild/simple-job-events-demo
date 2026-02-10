@@ -4,7 +4,7 @@
  * Handles job creation and event streaming via the IVCAP Jobs API.
  */
 
-import type { JobRequest, JobEvent, PresetName } from '@/types/events'
+import type { ChatJobRequest, ChatMessage, JobRequest, JobEvent, PresetName } from '@/types/events'
 import { getEventType } from '@/types/events'
 
 /** IVCAP API base URL from environment */
@@ -18,6 +18,7 @@ const SERVICE_URN = import.meta.env.VITE_SERVICE_URN || 'urn:ivcap:service:f82da
 
 /** Request schema for the workflow simulator */
 const REQUEST_SCHEMA = 'urn:sd:schema.workflow-simulator.request.1'
+const CHAT_REQUEST_SCHEMA = 'urn:sd:schema.workflow-simulator.chat.request.1'
 
 /**
  * Create a workflow job via IVCAP Jobs API
@@ -28,6 +29,12 @@ const REQUEST_SCHEMA = 'urn:sd:schema.workflow-simulator.request.1'
 export interface CreateJobOptions {
   totalRunTimeSeconds?: number
   tickIntervalSeconds?: number
+}
+
+export interface CreateChatJobOptions {
+  model?: string
+  temperature?: number
+  maxTokens?: number
 }
 
 export async function createJob(
@@ -70,6 +77,59 @@ export async function createJob(
   }
   
   return jobId
+}
+
+export async function createChatJob(
+  messages: ChatMessage[],
+  options: CreateChatJobOptions = {}
+): Promise<string> {
+  if (!messages.length) {
+    throw new Error('Cannot create chat job: messages is empty')
+  }
+
+  const parameters: ChatJobRequest = {
+    $schema: CHAT_REQUEST_SCHEMA,
+    messages,
+  }
+
+  if (options.model) {
+    parameters.model = options.model
+  }
+  if (Number.isFinite(options.temperature)) {
+    parameters.temperature = options.temperature
+  }
+  if (Number.isFinite(options.maxTokens)) {
+    parameters.max_tokens = options.maxTokens
+  }
+
+  const response = await fetch(`${API_URL}/1/services2/${encodeURIComponent(SERVICE_URN)}/jobs`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(AUTH_TOKEN && { 'Authorization': `Bearer ${AUTH_TOKEN}` }),
+    },
+    body: JSON.stringify(parameters),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`Chat job creation failed: ${response.status} - ${errorText}`)
+  }
+
+  const result = await response.json()
+  const jobId = result.id || result['job-id'] || result.job_id
+  if (!jobId) {
+    throw new Error('Chat job creation response missing job ID')
+  }
+  return jobId
+}
+
+export function isChatTokenEvent(event: JobEvent): boolean {
+  return event.step_id.startsWith('chat:token:')
+}
+
+export function getChatTokenText(event: JobEvent): string {
+  return isChatTokenEvent(event) ? event.message : ''
 }
 
 export interface JobRead {

@@ -1,6 +1,6 @@
 # IVCAP Job Events Demo Client
 
-A React web client for visualizing and interacting with the IVCAP Job Events Workflow Simulator.
+A React web client for visualizing and interacting with IVCAP Job Events.
 
 ## Tech Stack
 
@@ -9,6 +9,7 @@ A React web client for visualizing and interacting with the IVCAP Job Events Wor
 - **TypeScript** - Type safety
 - **Tailwind CSS v4** - Utility-first styling
 - **shadcn/ui** - Component library
+- **Vercel AI SDK v6** - Chat UI message state primitives
 
 ## Getting Started
 
@@ -54,6 +55,10 @@ VITE_SERVICE_URN=urn:ivcap:service:...
 
 # Optional in code, but typically required for non-public IVCAP endpoints
 VITE_AUTH_TOKEN=your-bearer-token-here
+
+# Optional for demo docs/reference.
+# Backend uses LITELLM_PROXY and LITELLM_API_KEY for actual proxy calls.
+VITE_LITELLM_PROXY=https://mindweaver.develop.ivcap.io/litellm
 ```
 
 ## Project Structure
@@ -65,13 +70,16 @@ client/
 │   │   ├── ui/              # shadcn/ui components
 │   │   └── EventStream.tsx  # Event display component
 │   ├── hooks/
-│   │   └── useWorkflow.ts   # Workflow state management
+│   │   ├── useWorkflow.ts        # Workflow state management
+│   │   └── useChatJobEvents.ts   # AI SDK state + JobEvents adapter
 │   ├── lib/
 │   │   ├── api.ts           # API client (job create, events)
 │   │   └── utils.ts         # Utility functions (cn helper)
 │   ├── types/
 │   │   └── events.ts        # TypeScript type definitions
-│   ├── App.tsx              # Main application component
+│   ├── pages/
+│   │   └── ChatPage.tsx     # Chat UI
+│   ├── App.tsx              # Route definitions
 │   ├── main.tsx             # Entry point
 │   └── index.css            # Global styles + Tailwind
 ├── components.json          # shadcn/ui configuration
@@ -81,10 +89,16 @@ client/
 
 ## Features
 
-### Workflow Control
+### Workflow Demo Route (`/`)
 - Select from available presets: `simple_pipeline`, `deep_research`, `multi_agent_crew`
 - Start/stop workflow execution
 - View real-time status
+
+### Chat Route (`/chat`)
+- Accepts user prompt input
+- Creates a new IVCAP chat job per submit
+- Streams `chat:token:*` events into incremental assistant output
+- Uses AI SDK v6 UI message state as transcript source-of-truth
 
 ### Event Stream
 - Live event display with auto-scroll
@@ -133,4 +147,4 @@ The client creates and monitors jobs via the IVCAP Jobs API:
 - `GET /1/services2/{service_urn}/jobs/{job_id}` (poll status)
 - `GET /1/services2/{service_urn}/jobs/{job_id}/events` (best-effort fetch events for display)
 
-> **Note:** The `/events` endpoint response format is still **unknown/untested** in this repo (no successful response captured yet). It may be JSON, or it may be SSE (`text/event-stream`). The current `subscribeToJobEvents` implementation is best-effort and may need to be updated once the real format is confirmed.
+> **Auth note:** `VITE_AUTH_TOKEN` is used for client -> IVCAP Jobs API calls. LiteLLM proxy authentication is handled by the backend via `LITELLM_API_KEY`.

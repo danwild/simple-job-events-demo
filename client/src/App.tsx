@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import { Link, Navigate, Route, Routes } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { EventStream } from "@/components/EventStream"
 import { useWorkflow } from "@/hooks/useWorkflow"
 import type { PresetName } from "@/types/events"
+import { ChatPage } from '@/pages/ChatPage'
 
 const PRESETS: { id: PresetName; label: string; description: string }[] = [
   { id: 'simple_pipeline', label: 'Simple Pipeline', description: 'Basic 3-step workflow' },
@@ -13,7 +15,7 @@ const PRESETS: { id: PresetName; label: string; description: string }[] = [
   { id: 'timer_tick', label: 'Timer/Tick', description: 'Emit one event per tick interval' },
 ]
 
-function App() {
+function WorkflowDemoPage() {
   const [selectedPreset, setSelectedPreset] = useState<PresetName>('simple_pipeline')
   const [timerTotalSeconds, setTimerTotalSeconds] = useState('60')
   const [timerTickIntervalSeconds, setTimerTickIntervalSeconds] = useState('5')
@@ -59,6 +61,9 @@ function App() {
           <p className="text-muted-foreground">
             Workflow Simulator for multi-agent pipelines
           </p>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/chat">Open Chat Stub</Link>
+          </Button>
         </header>
 
         {/* Workflow Control */}
@@ -242,6 +247,16 @@ function App() {
         )}
       </div>
     </div>
+  )
+}
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<WorkflowDemoPage />} />
+      <Route path="/chat" element={<ChatPage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   )
 }
 

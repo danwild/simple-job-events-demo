@@ -13,6 +13,21 @@ export interface JobRequest {
   tick_interval_seconds?: number
 }
 
+export type ChatRole = 'system' | 'user' | 'assistant'
+
+export interface ChatMessage {
+  role: ChatRole
+  content: string
+}
+
+export interface ChatJobRequest {
+  $schema: string
+  messages: ChatMessage[]
+  model?: string
+  temperature?: number
+  max_tokens?: number
+}
+
 /** Event type based on step_id prefix */
 export type EventType = 'workflow' | 'phase' | 'agent' | 'task'
 
