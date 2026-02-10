@@ -5,6 +5,7 @@ Chat simulator utilities for streaming LiteLLM responses as Job Events.
 import json
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor, Future
 from dataclasses import dataclass
 
 import httpx
@@ -130,8 +131,14 @@ class ChatSimulator:
         batch_num = 0
         last_flush = time.monotonic()
 
+        # Background thread for non-blocking event writes.  A single worker
+        # preserves event ordering while letting the LLM stream loop continue
+        # without waiting for the sidecar HTTP round-trip.
+        executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="event-flush")
+        pending_futures: list[Future] = []
+
         def flush_batch() -> None:
-            """Emit a single Job Event containing all buffered token text."""
+            """Submit a background Job Event write for all buffered token text."""
             nonlocal batch_num, last_flush
             if not batch_buffer:
                 return
@@ -139,10 +146,23 @@ class ChatSimulator:
             text = "".join(batch_buffer)
             batch_buffer.clear()
             last_flush = time.monotonic()
-            with self.job_context.report.step(
-                f"chat:tokens:{batch_num}", message=text
-            ):
-                self._event_count += 2  # start + finish
+            step_name = f"chat:tokens:{batch_num}"
+
+            def _emit() -> None:
+                with self.job_context.report.step(step_name, message=text):
+                    pass  # start + finish emitted by context manager
+
+            pending_futures.append(executor.submit(_emit))
+            self._event_count += 2  # start + finish
+
+        def drain_pending() -> None:
+            """Wait for all background event writes to complete."""
+            for fut in pending_futures:
+                try:
+                    fut.result(timeout=30)
+                except Exception as exc:
+                    self.logger.warning("Background event write failed: %s", exc)
+            pending_futures.clear()
 
         try:
             headers = {
@@ -232,6 +252,10 @@ class ChatSimulator:
                             # Flush any remaining buffered tokens
                             flush_batch()
 
+                            # Wait for all background event writes before
+                            # closing the response step.
+                            drain_pending()
+
                             response_step.finished(f"Completed streaming {chunks_emitted} chunks")
                             self._event_count += 1
 
@@ -262,3 +286,5 @@ class ChatSimulator:
             self.logger.exception("Unexpected chat simulation error")
             self._emit_error_event(str(wrapped))
             raise wrapped from e
+        finally:
+            executor.shutdown(wait=False)
