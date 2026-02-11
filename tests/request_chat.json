@@ -8,9 +8,8 @@
     },
     {
       "role": "user",
-      "content": "Explain the core design patterns behind modern AI agent architectures. Cover: ReAct (reasoning + acting), tool-use and function calling, multi-agent orchestration, and memory/context management. For each pattern, describe how it works, when you would choose it, its limitations, and give a concrete example of a framework or system that implements it (e.g. LangGraph, CrewAI, AutoGen, etc.)."
+      "content": "What are the three most important things to consider when designing an event-driven architecture?"
     }
   ],
-  "temperature": 0.7,
   "max_tokens": 1024
 }
