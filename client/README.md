@@ -106,15 +106,14 @@ A ChatGPT-style conversational interface for testing chat latency and UX through
 3. The client polls for job status until the job enters `running`/`executing`.
 4. Once running, the client subscribes to the job's SSE event stream.
 5. Non-token lifecycle events (`chat:request`, `chat:response`) are displayed as status messages in the assistant bubble.
-6. Batched token events (`chat:tokens:*`) are extracted and fed into a **typewriter animation** that reveals text character-by-character (~40 chars/sec), producing a smooth streaming effect even though tokens arrive in batches. Legacy singular `chat:token:*` events are also supported.
-7. On completion, any remaining queued typewriter text is flushed instantly, and timing metrics are displayed.
+6. Token events (`chat:token:*`) are extracted and appended directly to the assistant message as they arrive. The plural `chat:tokens:*` prefix is also supported for backward compatibility.
+7. On completion, the assistant message is finalized and timing metrics are displayed.
 
 **UI features:**
 
 - **Full-height chat layout** -- Scrollable messages area with bottom-pinned input bar.
 - **Chat bubbles** -- User messages right-aligned (primary color), assistant messages left-aligned (muted background).
 - **Thinking indicator** -- Animated bouncing dots with real-time status messages from the backend (e.g., "Submitting chat request to model 'gpt-5-mini'", "Streaming model response").
-- **Typewriter animation** -- Batched tokens are revealed character-by-character (~25 ms/char) for a smooth streaming illusion; remaining text is flushed instantly on completion.
 - **Streaming cursor** -- Blinking cursor at the end of the assistant text while tokens are arriving.
 - **Example prompts** -- Pre-built prompt buttons on the empty state for one-click testing ("AI Agent Architectures", "RAG vs Fine-tuning", "Quick test").
 - **Timing metrics bar** -- Compact row above the input showing latency deltas: Submit-to-Executing, Submit-to-First-Event, Submit-to-First-Token, Submit-to-Complete.
@@ -129,9 +128,9 @@ User message
   → POST /1/services2/{urn}/jobs (create chat job)
   → IVCAP schedules job → tool-service.py /chat endpoint
   → chat_simulator.py streams LLM via LiteLLM proxy
-  → Tokens batched and emitted as chat:tokens:{n} Job Events
+  → Each token emitted as chat:token:{n} Job Event (non-blocking background thread)
   → GET .../jobs/{id}/events (SSE long-poll)
-  → Client typewriter animation reveals text char-by-char
+  → Client appends tokens directly to assistant message
 ```
 
 ### Workflow Demo Route (`/`)

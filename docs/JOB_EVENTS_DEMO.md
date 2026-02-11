@@ -96,25 +96,19 @@ The chat tool emits steps so existing event consumers can reuse the current pars
 
 1. `chat:request` (request submitted / accepted)
 2. `chat:response` (stream lifecycle)
-3. `chat:tokens:{n}` for each **batched** group of streamed chunks
+3. `chat:token:{n}` for each streamed token/chunk
 4. `chat:complete` once final aggregation is complete
 
-#### Token Batching
+#### Background Event Writes
 
-LLM tokens are accumulated in a server-side buffer and flushed as a single
-`chat:tokens:{batch_num}` event (note the plural **tokens**) when either
-threshold is reached:
+Each token is emitted as its own event via a background `ThreadPoolExecutor`,
+so the LLM streaming loop never blocks on the sidecar HTTP round-trip. A single
+worker thread preserves event ordering while the main loop continues consuming
+tokens. Before `chat:complete`, all pending writes are drained so no events are
+lost.
 
-- **Time**: 300 ms since the last flush.
-- **Count**: 20 accumulated token chunks.
-- **Stream end**: any remaining buffered tokens are flushed before `chat:complete`.
-
-Each batch event carries the concatenated text of all tokens in the batch as
-its `message`, enabling the client to render large text segments per event
-instead of one word at a time.
-
-> **Backward compatibility:** The client also recognises the legacy
-> `chat:token:{n}` (singular) prefix so older service versions still work.
+> **Backward compatibility:** The client recognises both `chat:token:{n}`
+> (singular) and `chat:tokens:{n}` (plural) prefixes.
 
 ## End-To-End Event Flow
 
@@ -180,7 +174,7 @@ The chat page demonstrates end-to-end streaming UX:
 1. User sends a message (or clicks an example prompt).
 2. Client creates an IVCAP chat job.
 3. While waiting for the job to start, a **"Thinking..." indicator** is shown with real-time status messages from backend events (e.g., "Submitting chat request to model 'gpt-5-mini'").
-4. Once token batches start arriving, a **typewriter animation** reveals text character-by-character (~40 chars/sec) into the assistant bubble with a **blinking cursor**, similar to ChatGPT.
+4. As token events arrive, text is appended directly into the assistant bubble with a **blinking cursor**, similar to ChatGPT. Tokens stream at the natural LLM cadence since each token is emitted as its own event via a non-blocking background thread.
 5. A **timing metrics bar** above the input displays latency deltas: Submit-to-Executing, Submit-to-First-Event, Submit-to-First-Token, Submit-to-Complete.
 6. A collapsible **debug panel** shows raw job events and diagnostics.
 

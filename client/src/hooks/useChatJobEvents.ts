@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import type { UIMessage } from '@ai-sdk/react'
 import { useChat } from '@ai-sdk/react'
 import { generateId } from 'ai'
@@ -85,23 +85,7 @@ export function useChatJobEvents(): UseChatJobEventsReturn {
   const firstEventRecordedRef = useRef(false)
   const firstTokenRecordedRef = useRef(false)
 
-  // -- Adaptive typewriter animation -----------------------------------------
-  // Batched tokens arrive as large chunks. Instead of dumping them all at once
-  // we reveal text character-by-character, dynamically adjusting the speed so
-  // that rendering is never the bottleneck:
-  //   - Large queue (batch just landed) → render fast to catch up
-  //   - Small queue (draining between batches) → render slowly for smoothness
-  //   - Very large queue (>BURST_THRESHOLD) → emit multiple chars per tick
-  const MIN_TICK_MS = 8          // fastest: ~125 chars/sec
-  const MAX_TICK_MS = 40         // slowest: ~25 chars/sec
-  const QUEUE_FAST_THRESHOLD = 50 // queue length at which we hit max speed
-  const BURST_THRESHOLD = 200    // queue length above which we emit multi-char
-  const BURST_CHARS = 5          // chars per tick when bursting
-
-  const typewriterQueueRef = useRef('')
-  const typewriterTimerRef = useRef<number | null>(null)
-
-  // -- appendAssistantChunk (defined first; used by typewriter & finalizer) --
+  // -- appendAssistantChunk: appends streamed text to the assistant message --
   const appendAssistantChunk = useCallback((chunk: string) => {
     const assistantId = assistantIdRef.current
     if (!assistantId) return
@@ -119,72 +103,8 @@ export function useChatJobEvents(): UseChatJobEventsReturn {
     )
   }, [setMessages])
 
-  // -- Typewriter animation functions ----------------------------------------
-  const stopTypewriter = useCallback(() => {
-    if (typewriterTimerRef.current != null) {
-      window.clearTimeout(typewriterTimerRef.current)
-      typewriterTimerRef.current = null
-    }
-  }, [])
-
-  const flushTypewriter = useCallback(() => {
-    stopTypewriter()
-    const remaining = typewriterQueueRef.current
-    typewriterQueueRef.current = ''
-    if (remaining) {
-      appendAssistantChunk(remaining)
-    }
-  }, [appendAssistantChunk, stopTypewriter])
-
-  const startTypewriter = useCallback(() => {
-    if (typewriterTimerRef.current != null) return // already running
-
-    const scheduleNextTick = () => {
-      const queue = typewriterQueueRef.current
-      if (!queue) {
-        // Queue drained – pause until more text is enqueued
-        typewriterTimerRef.current = null
-        return
-      }
-
-      // Adaptive speed: large queue → fast tick, small queue → slow tick
-      const ratio = Math.min(queue.length / QUEUE_FAST_THRESHOLD, 1)
-      const tickMs = MAX_TICK_MS - ratio * (MAX_TICK_MS - MIN_TICK_MS)
-
-      // Burst mode: emit multiple chars when queue is very large
-      const charsToEmit = queue.length > BURST_THRESHOLD
-        ? Math.min(BURST_CHARS, queue.length)
-        : 1
-
-      typewriterTimerRef.current = window.setTimeout(() => {
-        const current = typewriterQueueRef.current
-        if (!current) {
-          typewriterTimerRef.current = null
-          return
-        }
-        const emitCount = Math.min(charsToEmit, current.length)
-        typewriterQueueRef.current = current.slice(emitCount)
-        appendAssistantChunk(current.slice(0, emitCount))
-        scheduleNextTick()
-      }, tickMs)
-    }
-
-    scheduleNextTick()
-  }, [appendAssistantChunk])
-
-  const enqueueTypewriterText = useCallback((text: string) => {
-    typewriterQueueRef.current += text
-    startTypewriter()
-  }, [startTypewriter])
-
-  // Clean up the typewriter timer on unmount
-  useEffect(() => {
-    return () => stopTypewriter()
-  }, [stopTypewriter])
-
   // -- cleanup & finalizeAssistant ------------------------------------------
   const cleanup = useCallback(() => {
-    stopTypewriter()
     if (abortRef.current) {
       abortRef.current()
       abortRef.current = null
@@ -194,14 +114,11 @@ export function useChatJobEvents(): UseChatJobEventsReturn {
       pollRef.current = null
     }
     connectedRef.current = false
-  }, [stopTypewriter])
+  }, [])
 
   const finalizeAssistant = useCallback(() => {
     const assistantId = assistantIdRef.current
     if (!assistantId) return
-
-    // Instantly reveal any remaining queued typewriter text
-    flushTypewriter()
 
     setMessages(prev =>
       prev.map(message => {
@@ -216,7 +133,7 @@ export function useChatJobEvents(): UseChatJobEventsReturn {
         }
       })
     )
-  }, [flushTypewriter, setMessages])
+  }, [setMessages])
 
   const submitPrompt = useCallback(async (prompt: string) => {
     const trimmed = prompt.trim()
@@ -284,7 +201,7 @@ export function useChatJobEvents(): UseChatJobEventsReturn {
                     setFirstTokenAt(new Date())
                   }
                   setTokenEvents(prev => prev + 1)
-                  enqueueTypewriterText(token)
+                  appendAssistantChunk(token)
                 }
               }
 
@@ -350,11 +267,10 @@ export function useChatJobEvents(): UseChatJobEventsReturn {
       setError(message)
       setStatus('error')
     }
-  }, [enqueueTypewriterText, cleanup, finalizeAssistant, messages, setMessages])
+  }, [appendAssistantChunk, cleanup, finalizeAssistant, messages, setMessages])
 
   const reset = useCallback(() => {
     cleanup()
-    typewriterQueueRef.current = ''
     assistantIdRef.current = null
     firstEventRecordedRef.current = false
     firstTokenRecordedRef.current = false

@@ -104,15 +104,6 @@ class ChatSimulator:
         with self.job_context.report.step("chat:error", message=safe_message):
             self._event_count += 2
 
-    # -- Token batching configuration ------------------------------------------
-    # Tokens from the LLM stream are accumulated and flushed as a single Job
-    # Event when either threshold is exceeded.  This dramatically reduces the
-    # number of events emitted (and therefore the end-to-end latency perceived
-    # by the client) while the client-side typewriter animation smooths out the
-    # visual presentation.
-    BATCH_FLUSH_INTERVAL_S = 0.3   # flush at most every 300 ms
-    BATCH_FLUSH_MAX_TOKENS = 20    # or when 20 chunks have accumulated
-
     def run_streaming_chat(
         self,
         messages: list[dict],
@@ -126,34 +117,11 @@ class ChatSimulator:
         approx_tokens_emitted = 0
         response_chunks: list[str] = []
 
-        # -- Batch state -------------------------------------------------------
-        batch_buffer: list[str] = []
-        batch_num = 0
-        last_flush = time.monotonic()
-
         # Background thread for non-blocking event writes.  A single worker
         # preserves event ordering while letting the LLM stream loop continue
         # without waiting for the sidecar HTTP round-trip.
         executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="event-flush")
         pending_futures: list[Future] = []
-
-        def flush_batch() -> None:
-            """Submit a background Job Event write for all buffered token text."""
-            nonlocal batch_num, last_flush
-            if not batch_buffer:
-                return
-            batch_num += 1
-            text = "".join(batch_buffer)
-            batch_buffer.clear()
-            last_flush = time.monotonic()
-            step_name = f"chat:tokens:{batch_num}"
-
-            def _emit() -> None:
-                with self.job_context.report.step(step_name, message=text):
-                    pass  # start + finish emitted by context manager
-
-            pending_futures.append(executor.submit(_emit))
-            self._event_count += 2  # start + finish
 
         def drain_pending() -> None:
             """Wait for all background event writes to complete."""
@@ -241,16 +209,13 @@ class ChatSimulator:
                                 approx_tokens_emitted += max(1, len(delta.split()))
                                 response_chunks.append(delta)
 
-                                # Buffer the token and flush when thresholds are met
-                                batch_buffer.append(delta)
-                                if (
-                                    len(batch_buffer) >= self.BATCH_FLUSH_MAX_TOKENS
-                                    or time.monotonic() - last_flush >= self.BATCH_FLUSH_INTERVAL_S
-                                ):
-                                    flush_batch()
-
-                            # Flush any remaining buffered tokens
-                            flush_batch()
+                                # Emit each token as its own background event
+                                step_name = f"chat:token:{chunks_emitted}"
+                                def _emit(sn=step_name, txt=delta):
+                                    with self.job_context.report.step(sn, message=txt):
+                                        pass  # start + finish emitted by context manager
+                                pending_futures.append(executor.submit(_emit))
+                                self._event_count += 2
 
                             # Wait for all background event writes before
                             # closing the response step.
